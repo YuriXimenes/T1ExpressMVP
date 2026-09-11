@@ -18,6 +18,7 @@ export interface NavItem {
 
 export const mainNav: NavItem[] = [
   { label: "Como funciona", href: "/#como-funciona" },
+  { label: "Sobre nós", href: "/sobre" },
   { label: "Pontos T1", href: "/pontos-t1" },
   { label: "Para lojas", href: "/para-lojas" },
   { label: "Segurança", href: "/seguranca" },
@@ -29,7 +30,6 @@ export const footerNav: { title: string; items: NavItem[] }[] = [
     items: [
       { label: "Como funciona", href: "/#como-funciona" },
       { label: "Pontos T1", href: "/pontos-t1" },
-      { label: "Comparativo", href: "/comparativo" },
       { label: "Simular frete", href: "/simular-frete" },
     ],
   },

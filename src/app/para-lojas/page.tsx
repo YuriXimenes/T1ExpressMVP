@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { Handshake, PackageCheck, TrendingUp, Wallet } from "lucide-react";
+import { MapPin, Plug, TrendingUp, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Section } from "@/components/shared/section";
-import { StubPageHero } from "@/components/shared/stub-page-hero";
-import { IconFeature } from "@/components/shared/icon-feature";
+import { Container } from "@/components/shared/container";
+import { InteractiveGridBackground } from "@/components/shared/interactive-grid-background";
+import { BentoShowcase } from "@/components/sections/bento-showcase";
+import { PartnerInterestDialog } from "@/components/sections/partner-interest-dialog";
 
 export const metadata: Metadata = {
   title: "Para lojas",
@@ -15,52 +15,74 @@ const benefits = [
     icon: TrendingUp,
     title: "Aumente seu alcance",
     description:
-      "Venda para colecionadores de todo o Brasil sem se preocupar com logística.",
+      "Conecte sua loja a novos clientes em diferentes regiões do Rio de Janeiro.",
   },
   {
-    icon: PackageCheck,
-    title: "Logística simplificada",
-    description: "Coleta, transporte e rastreamento cuidados de ponta a ponta pela T1.",
+    icon: Truck,
+    title: "Operação simples para sua loja",
+    description:
+      "A T1 cuida da coleta e do transporte dos pedidos, sem complicar a rotina da sua equipe.",
   },
   {
-    icon: Wallet,
-    title: "Pagamento facilitado",
-    description: "Repasses simples e previsíveis, integrados ao seu fluxo de vendas.",
+    icon: MapPin,
+    title: "Melhor experiência para seus clientes",
+    description:
+      "Seus clientes escolhem um ponto parceiro para retirar seus pedidos de forma prática e segura.",
   },
   {
-    icon: Handshake,
-    title: "Comunidade T1 Network",
-    description: "Faça parte da maior rede de lojas de TCG do país.",
+    icon: Plug,
+    title: "Sem estrutura adicional",
+    description:
+      "Amplie suas opções de entrega e retirada sem precisar criar novos pontos ou investir em uma operação própria.",
   },
 ];
 
 export default function ParaLojasPage() {
   return (
-    <Section background="muted">
-      <StubPageHero
-        title="Sua loja pode fazer parte da rota T1"
-        description="Torne-se um Ponto T1 e conecte sua loja a colecionadores e outras lojas parceiras em todo o Brasil."
-        inProgress
-      />
+    <section className="relative flex flex-1 flex-col justify-center overflow-hidden bg-slate-50 py-12 md:py-16">
+      <InteractiveGridBackground />
 
-      <div className="mt-12 grid gap-8 sm:grid-cols-2">
-        {benefits.map((benefit) => (
-          <IconFeature
-            key={benefit.title}
-            {...benefit}
-            className="items-start text-left"
+      <Container className="relative">
+        <div className="mx-auto max-w-2xl text-center">
+          <h1 className="text-3xl font-bold text-balance text-slate-900 sm:text-4xl">
+            Sua loja pode fazer parte da rota T1
+          </h1>
+          <p className="mt-4 text-lg text-slate-600">
+            Torne-se um Ponto T1 e conecte sua loja a colecionadores e outras lojas
+            parceiras no Rio de Janeiro.
+          </p>
+        </div>
+
+        <div className="mt-12">
+          <BentoShowcase
+            eyebrow="Ponto parceiro T1"
+            title="Faça parte da T1 Network"
+            description="Integre-se a uma rede de lojas parceiras que está construindo uma nova experiência para o mercado TCG no Rio e, futuramente, Brasil."
+            imageSrc="/images/for-shops/partner-network-illustration.png"
+            imagePositionDesktop="100% 50%"
+            imageLayout="bleed"
+            cta={
+              <PartnerInterestDialog
+                trigger={
+                  <Button
+                    size="lg"
+                    className="text-brand-700 mx-auto mt-4 w-fit bg-white px-7 text-base font-semibold shadow-lg shadow-black/20 hover:bg-white/90 sm:mx-0"
+                  >
+                    Quero ser um Ponto T1
+                  </Button>
+                }
+              />
+            }
+            benefits={benefits}
           />
-        ))}
-      </div>
+        </div>
 
-      <div className="mt-12 text-center">
-        <Button size="lg" className="px-6" asChild>
-          <Link href="/login">Quero ser um Ponto T1</Link>
-        </Button>
-        <p className="mt-4 text-sm text-slate-500">
-          O formulário completo de cadastro de lojas estará disponível em breve.
+        <p className="mt-8 flex items-center justify-center gap-1.5 text-sm text-slate-500">
+          <MapPin className="text-brand-600 h-4 w-4 shrink-0" aria-hidden="true" />
+          Hoje a T1 Express atua no Rio de Janeiro — nosso objetivo é expandir para todo o
+          Brasil.
         </p>
-      </div>
-    </Section>
+      </Container>
+    </section>
   );
 }

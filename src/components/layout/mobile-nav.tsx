@@ -11,9 +11,13 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { UserMenuButton } from "@/components/layout/user-menu-button";
 import { mainNav } from "@/lib/constants";
+import { useAuth } from "@/lib/auth";
 
 export function MobileNav() {
+  const { isLoggedIn, user } = useAuth();
+
   return (
     <Sheet>
       <SheetTrigger asChild>
@@ -39,9 +43,13 @@ export function MobileNav() {
         </nav>
         <div className="mt-auto flex flex-col gap-2 border-t border-slate-100 p-4">
           <SheetClose asChild>
-            <Button variant="outline" size="lg" asChild>
-              <Link href="/login">Login</Link>
-            </Button>
+            {isLoggedIn && user ? (
+              <UserMenuButton user={user} className="justify-center py-2.5" />
+            ) : (
+              <Button variant="outline" size="lg" asChild>
+                <Link href="/login">Login</Link>
+              </Button>
+            )}
           </SheetClose>
           <SheetClose asChild>
             <Button size="lg" asChild>

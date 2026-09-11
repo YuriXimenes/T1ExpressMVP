@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Lock, PackageCheck, Radar, ShieldCheck } from "lucide-react";
-import { Card } from "@/components/ui/card";
-import { Section } from "@/components/shared/section";
-import { StubPageHero } from "@/components/shared/stub-page-hero";
+import { Button } from "@/components/ui/button";
+import { Container } from "@/components/shared/container";
+import { InteractiveGridBackground } from "@/components/shared/interactive-grid-background";
+import { BentoShowcase } from "@/components/sections/bento-showcase";
 
 export const metadata: Metadata = {
   title: "Segurança",
@@ -37,23 +39,41 @@ const pillars = [
 
 export default function SegurancaPage() {
   return (
-    <Section background="white">
-      <StubPageHero
-        title="Segurança em cada etapa do envio"
-        description="Da embalagem ao rastreamento, a T1 Express foi construída para proteger o que há de mais valioso na sua coleção."
-      />
+    <section className="relative flex flex-1 flex-col justify-center overflow-hidden bg-slate-50 py-12 md:py-16">
+      <InteractiveGridBackground />
 
-      <div className="mt-12 grid gap-6 sm:grid-cols-2">
-        {pillars.map((pillar) => (
-          <Card key={pillar.title} className="gap-3 p-6">
-            <span className="bg-brand-50 flex h-11 w-11 items-center justify-center rounded-xl">
-              <pillar.icon className="text-brand-600 h-5 w-5" aria-hidden="true" />
-            </span>
-            <h3 className="text-lg font-semibold text-slate-900">{pillar.title}</h3>
-            <p className="text-sm text-slate-600">{pillar.description}</p>
-          </Card>
-        ))}
-      </div>
-    </Section>
+      <Container className="relative">
+        <div className="mx-auto max-w-2xl text-center">
+          <h1 className="text-3xl font-bold text-balance text-slate-900 sm:text-4xl">
+            Segurança em cada etapa do envio
+          </h1>
+          <p className="mt-4 text-lg text-slate-600">
+            Da embalagem ao rastreamento, a T1 Express foi construída para proteger o que
+            há de mais valioso na sua coleção.
+          </p>
+        </div>
+
+        <div className="mt-12">
+          <BentoShowcase
+            eyebrow="Envio seguro T1"
+            title="Proteção em cada etapa do envio"
+            description="Cobertura, rastreamento e embalagens especializadas para seus produtos chegarem com segurança do início ao fim."
+            imageSrc="/images/seguranca/security-illustration.png"
+            imagePositionMobile="65% 60%"
+            imagePositionDesktop="0% 42%"
+            cta={
+              <Button
+                size="lg"
+                className="text-brand-700 mx-auto mt-4 w-fit bg-white px-7 text-base font-semibold shadow-lg shadow-black/20 hover:bg-white/90 sm:mx-0"
+                asChild
+              >
+                <Link href="/simular-frete">Simular frete</Link>
+              </Button>
+            }
+            benefits={pillars}
+          />
+        </div>
+      </Container>
+    </section>
   );
 }

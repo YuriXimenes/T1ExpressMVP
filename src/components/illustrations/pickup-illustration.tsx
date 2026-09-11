@@ -26,7 +26,11 @@ export function PickupIllustration({ className }: { className?: string }) {
         />
       </g>
 
-      <g transform="translate(150 78)">
+      <g
+        className="animate-float-y"
+        style={{ transformOrigin: "150px 78px" }}
+        transform="translate(150 78)"
+      >
         <rect x="-16" y="-16" width="32" height="32" rx="5" fill="var(--sky-400)" />
         <path d="M-16 -6 H16 M0 -16 V16" stroke="var(--brand-900)" strokeWidth="2" />
       </g>

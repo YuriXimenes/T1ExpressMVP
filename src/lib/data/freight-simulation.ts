@@ -1,64 +1,80 @@
-import { stores } from "@/lib/data/stores";
-import type { FreightQuoteRequest, FreightQuoteResult } from "@/lib/types/freight";
+import { freightStores } from "@/lib/data/freight-stores";
+import { CORREIOS_FLAT_RATE_BRL, freightRoutes } from "@/lib/data/freight-routes";
+import type {
+  CompetitorQuote,
+  FreightQuoteRequest,
+  FreightQuoteResult,
+} from "@/lib/types/freight";
 
-/** Hash simples e determinístico (mesma entrada sempre gera o mesmo número). */
-function hashPair(a: string, b: string): number {
-  const combined = [a, b].sort().join("|");
-  let hash = 0;
-  for (let i = 0; i < combined.length; i++) {
-    hash = (hash << 5) - hash + combined.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash);
-}
+/** Custo marginal de cada loja de coleta além da primeira — usado tanto na cotação quanto para adicionar lojas depois do pedido feito. */
+export const EXTRA_ORIGIN_STORE_FEE_BRL = 3;
 
 export function simulateFreight({
-  originStoreId,
+  originStoreIds,
   destinationStoreId,
 }: FreightQuoteRequest): FreightQuoteResult {
-  const origin = stores.find((s) => s.id === originStoreId);
-  const destination = stores.find((s) => s.id === destinationStoreId);
+  const origins = originStoreIds.map((id) => {
+    const store = freightStores.find((s) => s.id === id);
+    if (!store) throw new Error("Loja de origem inválida.");
+    return store;
+  });
 
-  if (!origin || !destination) {
-    throw new Error("Loja de origem ou destino inválida.");
+  const destination = freightStores.find(
+    (s) => s.id === destinationStoreId && s.isPickupPoint,
+  );
+  if (!destination) {
+    throw new Error("Ponto de retirada inválido.");
   }
 
-  const variation = hashPair(originStoreId, destinationStoreId) % 100;
+  const routes = origins.map((origin) => {
+    const route = freightRoutes.find(
+      (r) => r.originStoreId === origin.id && r.destinationStoreId === destinationStoreId,
+    );
+    if (!route) throw new Error("Rota sem cotação de concorrentes cadastrada.");
+    return route;
+  });
 
-  if (origin.id === destination.id) {
-    return {
-      priceBRL: 0,
-      estimatedDaysMin: 0,
-      estimatedDaysMax: 0,
-      distanceLabel: "Mesma loja",
-    };
+  const priceBRL = 12 + Math.max(0, origins.length - 1) * EXTRA_ORIGIN_STORE_FEE_BRL;
+
+  const loggiTotal = routes.reduce((sum, r) => sum + r.loggiBRL, 0);
+  const correiosTotal = CORREIOS_FLAT_RATE_BRL * origins.length;
+  const uberTotal = routes.every((r) => r.uberBRL !== undefined)
+    ? routes.reduce((sum, r) => sum + (r.uberBRL ?? 0), 0)
+    : undefined;
+
+  const competitors: CompetitorQuote[] = [
+    {
+      carrier: "loggi",
+      label: "Loggi Express",
+      etaLabel: "~3 horas",
+      totalBRL: loggiTotal,
+    },
+    {
+      carrier: "correios",
+      label: "Correios (Carta Registrada)",
+      etaLabel: "~4 dias úteis",
+      totalBRL: correiosTotal,
+    },
+  ];
+  if (uberTotal !== undefined) {
+    competitors.unshift({
+      carrier: "uber",
+      label: "Uber",
+      etaLabel: "~3 horas",
+      totalBRL: uberTotal,
+    });
   }
 
-  const sameCity = origin.city === destination.city && origin.state === destination.state;
-  const sameState = origin.state === destination.state;
-
-  if (sameCity) {
-    return {
-      priceBRL: 18.9 + variation / 10,
-      estimatedDaysMin: 1,
-      estimatedDaysMax: 2,
-      distanceLabel: `${origin.city} - ${origin.city}`,
-    };
-  }
-
-  if (sameState) {
-    return {
-      priceBRL: 32.9 + variation / 5,
-      estimatedDaysMin: 2,
-      estimatedDaysMax: 4,
-      distanceLabel: `${origin.city} - ${destination.city} (${origin.state})`,
-    };
-  }
+  const cheapest = competitors.reduce((min, c) => (c.totalBRL < min.totalBRL ? c : min));
+  const cheapestSavingsBRL =
+    priceBRL < cheapest.totalBRL ? cheapest.totalBRL - priceBRL : undefined;
 
   return {
-    priceBRL: 49.9 + variation / 2.5,
+    priceBRL,
     estimatedDaysMin: 3,
-    estimatedDaysMax: 7,
-    distanceLabel: `${origin.city}/${origin.state} - ${destination.city}/${destination.state}`,
+    estimatedDaysMax: 3,
+    distanceLabel: `${origins.map((s) => s.name).join(", ")} → ${destination.name}`,
+    competitors,
+    cheapestSavingsBRL,
   };
 }

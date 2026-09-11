@@ -36,7 +36,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           Pular para o conteúdo
         </a>
         <Header />
-        <main id="main-content" className="flex-1">
+        <main id="main-content" className="flex flex-1 flex-col">
           {children}
         </main>
         <Footer />

@@ -1,24 +1,22 @@
 import { HeroSection } from "@/components/sections/hero-section";
-import { QuickFeaturesRow } from "@/components/sections/quick-features-row";
+import { StoreLogosSection } from "@/components/sections/store-logos-section";
 import { HowItWorksSection } from "@/components/sections/how-it-works-section";
-import { NetworkSection } from "@/components/sections/network-section";
-import { TrackingSection } from "@/components/sections/tracking-section";
+import { RioNetworkSection } from "@/components/sections/rio-network-section";
+import { MarketComparisonSection } from "@/components/sections/market-comparison-section";
 import { ForShopsSection } from "@/components/sections/for-shops-section";
-import { getFeaturedStores, getPartnerStores } from "@/lib/services/stores.service";
+import { getPickupPartners } from "@/lib/services/pickup-partners.service";
+import { storeLogos } from "@/lib/data/store-logos";
 
 export default async function Home() {
-  const [allStores, featuredStores] = await Promise.all([
-    getPartnerStores(),
-    getFeaturedStores(6),
-  ]);
+  const pickupPartners = await getPickupPartners();
 
   return (
     <>
-      <HeroSection stores={allStores} />
-      <QuickFeaturesRow />
+      <HeroSection />
+      <StoreLogosSection logos={storeLogos} />
       <HowItWorksSection />
-      <NetworkSection stores={featuredStores} />
-      <TrackingSection />
+      <RioNetworkSection partners={pickupPartners} />
+      <MarketComparisonSection />
       <ForShopsSection />
     </>
   );

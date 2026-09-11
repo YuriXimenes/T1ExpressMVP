@@ -1,21 +1,31 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/lib/auth";
 
-export function LoginForm() {
-  const [submitted, setSubmitted] = useState(false);
+export function LoginForm({ next }: { next?: string }) {
+  const router = useRouter();
+  const { login } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   return (
-    <Card className="mt-6 gap-5 p-6">
+    <div>
       <form
+        id="login-form"
         className="flex flex-col gap-4"
         onSubmit={(event) => {
           event.preventDefault();
-          setSubmitted(true);
+          const form = event.currentTarget;
+          const email = (form.elements.namedItem("email") as HTMLInputElement).value;
+          setIsSubmitting(true);
+          login({ name: email.split("@")[0], email });
+          router.push(next || "/conta");
         }}
       >
         <div className="space-y-1.5">
@@ -33,20 +43,24 @@ export function LoginForm() {
             required
           />
         </div>
-
-        <Button type="submit" size="lg" className="mt-2 w-full">
-          Entrar
-        </Button>
       </form>
 
-      <p
-        role="status"
-        aria-live="polite"
-        className="min-h-5 text-center text-sm text-slate-600"
-      >
-        {submitted &&
-          "Login estará disponível em breve. Estamos preparando essa etapa com foco em segurança."}
-      </p>
-    </Card>
+      <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-5">
+        <p className="text-sm text-slate-600">
+          Não tem conta?{" "}
+          <Link
+            href={`/criar-conta${next ? `?next=${encodeURIComponent(next)}` : ""}`}
+            className="text-brand-600 font-medium hover:underline"
+          >
+            Criar conta
+          </Link>
+        </p>
+
+        <Button type="submit" form="login-form" size="lg" disabled={isSubmitting}>
+          Entrar
+          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </Button>
+      </div>
+    </div>
   );
 }

@@ -1,30 +1,44 @@
 import type { Metadata } from "next";
-import { Section } from "@/components/shared/section";
+import { Container } from "@/components/shared/container";
+import { InteractiveGridBackground } from "@/components/shared/interactive-grid-background";
 import { StubPageHero } from "@/components/shared/stub-page-hero";
-import { StoreCard } from "@/components/shared/store-card";
-import { getPartnerStores } from "@/lib/services/stores.service";
+import { PontosT1Network } from "@/components/sections/pontos-t1-network";
+import {
+  getColetaPartners,
+  getPickupPartners,
+} from "@/lib/services/pickup-partners.service";
 
 export const metadata: Metadata = {
   title: "Pontos T1",
 };
 
 export default async function PontosT1Page() {
-  const stores = await getPartnerStores();
+  const [coletaPartners, retiradaPartners] = await Promise.all([
+    getColetaPartners(),
+    getPickupPartners(),
+  ]);
 
   return (
-    <Section background="white">
-      <StubPageHero
-        title="Pontos T1"
-        description={
-          'Todas as lojas parceiras da rede T1 Express. Lojas com o selo "Ponto de retirada" também recebem pedidos para retirada final.'
-        }
-      />
+    <section className="relative overflow-hidden bg-slate-50 py-12 md:py-16">
+      <InteractiveGridBackground />
 
-      <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {stores.map((store) => (
-          <StoreCard key={store.id} store={store} />
-        ))}
-      </div>
-    </Section>
+      <Container className="relative">
+        <StubPageHero
+          title="Pontos T1"
+          description={
+            <>
+              Veja no mapa onde coletamos e onde entregamos sua coleção.
+              <br />
+              Clique em uma loja na lista para localizá-la.
+            </>
+          }
+        />
+
+        <PontosT1Network
+          coletaPartners={coletaPartners}
+          retiradaPartners={retiradaPartners}
+        />
+      </Container>
+    </section>
   );
 }

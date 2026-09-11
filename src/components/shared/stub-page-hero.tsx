@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 
 export function StubPageHero({
@@ -6,7 +7,7 @@ export function StubPageHero({
   inProgress = false,
 }: {
   title: string;
-  description: string;
+  description: ReactNode;
   inProgress?: boolean;
 }) {
   return (
