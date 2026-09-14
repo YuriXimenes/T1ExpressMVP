@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -11,22 +12,17 @@ export function Logo({
   return (
     <Link
       href="/"
-      className={cn(
-        "flex items-center gap-2 text-lg font-bold",
-        invert ? "text-white" : "text-slate-900",
-        className,
-      )}
+      className={cn("inline-flex items-center", className)}
+      aria-label="T1 Express"
     >
-      <span
-        className={cn(
-          "flex h-9 w-9 items-center justify-center rounded-lg text-sm font-extrabold text-white",
-          invert ? "bg-white/15" : "bg-brand-600",
-        )}
-        aria-hidden="true"
-      >
-        T1
-      </span>
-      <span className="font-heading">T1 Express</span>
+      <Image
+        src={invert ? "/brand/logo-on-blue.svg" : "/brand/logo-light.svg"}
+        alt="T1 Express"
+        width={623}
+        height={502}
+        priority
+        className="h-11 w-auto"
+      />
     </Link>
   );
 }
