@@ -50,7 +50,7 @@ export function PagamentoView({
   extraChargeId: string | null;
 }) {
   const router = useRouter();
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, isReady } = useAuth();
   const { orders, markActive, resolveCharge } = useMockOrders();
   const { stores: freightStores } = useCatalog();
   const order = orderId
@@ -64,8 +64,8 @@ export function PagamentoView({
   const [succeeded, setSucceeded] = useState(false);
 
   useEffect(() => {
-    if (!isLoggedIn) router.replace("/login?next=%2Fpagamento");
-  }, [isLoggedIn, router]);
+    if (isReady && !isLoggedIn) router.replace("/login?next=%2Fpagamento");
+  }, [isReady, isLoggedIn, router]);
 
   useEffect(() => {
     if (!succeeded) return;

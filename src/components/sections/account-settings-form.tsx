@@ -10,14 +10,20 @@ import { AvatarUploader } from "@/components/shared/avatar-uploader";
 import { GamesPicker } from "@/components/shared/games-picker";
 import { StorePreferencesPicker } from "@/components/shared/store-preferences-picker";
 import { useAuth } from "@/lib/auth";
+import { AccountError } from "@/lib/account";
+import { formatCep } from "@/lib/format-cep";
+import { StateAvailabilityNotice, StateSelect } from "@/components/shared/state-select";
 import { formatPhone } from "@/lib/format-phone";
 import { initials } from "@/lib/initials";
 import type { CustomPreferredStore, GameTag } from "@/lib/types/signup";
 
 export function AccountSettingsForm() {
   const router = useRouter();
-  const { user, login, logout, updateAvatar } = useAuth();
+  const { user, saveProfile, logout, updateAvatar } = useAuth();
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [uf, setUf] = useState(user?.address?.state ?? "");
 
   const [phone, setPhone] = useState(user?.phone ?? "");
   const [games, setGames] = useState<GameTag[]>(user?.games ?? []);
@@ -38,7 +44,18 @@ export function AccountSettingsForm() {
       <Card className="gap-6 p-6">
         <AvatarUploader
           value={user?.avatarUrl}
-          onChange={updateAvatar}
+          onChange={async (dataUrl) => {
+            setSaveError(null);
+            try {
+              await updateAvatar(dataUrl);
+            } catch (err) {
+              setSaveError(
+                err instanceof AccountError
+                  ? err.message
+                  : "Não foi possível enviar a foto.",
+              );
+            }
+          }}
           fallback={
             <span className="text-2xl text-slate-500">
               {user ? initials(user.name) : ""}
@@ -48,33 +65,46 @@ export function AccountSettingsForm() {
 
         <form
           className="flex flex-col gap-8"
-          onSubmit={(event) => {
+          onSubmit={async (event) => {
             event.preventDefault();
             const form = event.currentTarget;
             const value = (name: string) =>
               (form.elements.namedItem(name) as HTMLInputElement).value;
 
-            login({
-              name: value("name"),
-              email: value("email"),
-              avatarUrl: user?.avatarUrl,
-              phone,
-              address: {
-                street: value("street"),
-                neighborhood: value("neighborhood"),
-                city: value("city"),
-                state: value("state"),
-                zip: value("zip"),
-                complement: value("complement") || undefined,
-              },
-              games,
-              otherGames: games.includes("outro") ? customGames : undefined,
-              preferredStoreIds,
-              customPreferredStores: customStores.filter(
-                (store) => store.name.trim() && store.address.trim(),
-              ),
-            });
-            setSaved(true);
+            setIsSaving(true);
+            setSaveError(null);
+            try {
+              await saveProfile({
+                name: value("name"),
+                email: user?.email ?? value("email"),
+                avatarUrl: user?.avatarUrl,
+                phone,
+                address: {
+                  street: value("street"),
+                  number: value("number") || undefined,
+                  neighborhood: value("neighborhood"),
+                  city: value("city"),
+                  state: uf,
+                  zip: value("zip"),
+                  complement: value("complement") || undefined,
+                },
+                games,
+                otherGames: games.includes("outro") ? customGames : undefined,
+                preferredStoreIds,
+                customPreferredStores: customStores.filter(
+                  (store) => store.name.trim() && store.address.trim(),
+                ),
+              });
+              setSaved(true);
+            } catch (err) {
+              setSaveError(
+                err instanceof AccountError
+                  ? err.message
+                  : "Não foi possível salvar. Tente novamente.",
+              );
+            } finally {
+              setIsSaving(false);
+            }
           }}
         >
           <section className="space-y-4">
@@ -101,7 +131,8 @@ export function AccountSettingsForm() {
                   defaultValue={user?.email}
                   autoComplete="email"
                   required
-                  onChange={markUnsaved}
+                  readOnly
+                  className="bg-slate-50 text-slate-500"
                 />
               </div>
               <div className="space-y-1.5">
@@ -125,16 +156,29 @@ export function AccountSettingsForm() {
 
           <section className="space-y-4">
             <h3 className="text-sm font-semibold text-slate-900">Endereço</h3>
-            <div className="space-y-1.5">
-              <Label htmlFor="settings-street">Rua</Label>
-              <Input
-                id="settings-street"
-                name="street"
-                type="text"
-                defaultValue={user?.address?.street}
-                autoComplete="street-address"
-                onChange={markUnsaved}
-              />
+            <div className="grid grid-cols-[1fr_6.5rem] gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="settings-street">Rua</Label>
+                <Input
+                  id="settings-street"
+                  name="street"
+                  type="text"
+                  defaultValue={user?.address?.street}
+                  autoComplete="address-line1"
+                  onChange={markUnsaved}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="settings-number">Número</Label>
+                <Input
+                  id="settings-number"
+                  name="number"
+                  type="text"
+                  maxLength={10}
+                  defaultValue={user?.address?.number}
+                  onChange={markUnsaved}
+                />
+              </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
@@ -154,9 +198,16 @@ export function AccountSettingsForm() {
                   name="zip"
                   type="text"
                   inputMode="numeric"
-                  defaultValue={user?.address?.zip}
+                  defaultValue={user?.address?.zip ? formatCep(user.address.zip) : ""}
                   autoComplete="postal-code"
-                  onChange={markUnsaved}
+                  placeholder="00000-000"
+                  maxLength={9}
+                  pattern="\d{5}-\d{3}"
+                  title="Informe o CEP no formato 00000-000"
+                  onChange={(event) => {
+                    event.target.value = formatCep(event.target.value);
+                    markUnsaved();
+                  }}
                 />
               </div>
             </div>
@@ -174,16 +225,17 @@ export function AccountSettingsForm() {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="settings-state">Estado</Label>
-                <Input
+                <StateSelect
                   id="settings-state"
-                  name="state"
-                  type="text"
-                  defaultValue={user?.address?.state}
-                  autoComplete="address-level1"
-                  onChange={markUnsaved}
+                  value={uf}
+                  onChange={(next) => {
+                    setUf(next);
+                    markUnsaved();
+                  }}
                 />
               </div>
             </div>
+            <StateAvailabilityNotice uf={uf} />
             <div className="space-y-1.5">
               <Label htmlFor="settings-complement">
                 Complemento <span className="text-slate-400">(opcional)</span>
@@ -226,8 +278,8 @@ export function AccountSettingsForm() {
             />
           </section>
 
-          <Button type="submit" size="lg" className="w-full">
-            Salvar alterações
+          <Button type="submit" size="lg" className="w-full" disabled={isSaving}>
+            {isSaving ? "Salvando..." : "Salvar alterações"}
           </Button>
 
           <p
@@ -237,6 +289,11 @@ export function AccountSettingsForm() {
           >
             {saved && "Dados salvos."}
           </p>
+          {saveError && (
+            <p role="alert" className="text-center text-sm text-red-600">
+              {saveError}
+            </p>
+          )}
         </form>
       </Card>
 
@@ -245,8 +302,8 @@ export function AccountSettingsForm() {
         variant="outline"
         size="lg"
         className="w-full"
-        onClick={() => {
-          logout();
+        onClick={async () => {
+          await logout();
           router.push("/");
         }}
       >

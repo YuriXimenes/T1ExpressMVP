@@ -8,24 +8,38 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/auth";
+import { AccountError } from "@/lib/account";
 
 export function LoginForm({ next }: { next?: string }) {
   const router = useRouter();
-  const { login } = useAuth();
+  const { signIn } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   return (
     <div>
       <form
         id="login-form"
         className="flex flex-col gap-4"
-        onSubmit={(event) => {
+        onSubmit={async (event) => {
           event.preventDefault();
           const form = event.currentTarget;
           const email = (form.elements.namedItem("email") as HTMLInputElement).value;
+          const password = (form.elements.namedItem("password") as HTMLInputElement)
+            .value;
           setIsSubmitting(true);
-          login({ name: email.split("@")[0], email });
-          router.push(next || "/conta");
+          setError(null);
+          try {
+            await signIn(email.trim(), password);
+            router.push(next || "/conta");
+          } catch (err) {
+            setError(
+              err instanceof AccountError
+                ? err.message
+                : "Não foi possível entrar. Tente novamente.",
+            );
+            setIsSubmitting(false);
+          }
         }}
       >
         <div className="space-y-1.5">
@@ -43,6 +57,12 @@ export function LoginForm({ next }: { next?: string }) {
             required
           />
         </div>
+
+        {error && (
+          <p role="alert" className="text-sm text-red-600">
+            {error}
+          </p>
+        )}
       </form>
 
       <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-5">

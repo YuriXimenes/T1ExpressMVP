@@ -11,10 +11,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AvatarUploader } from "@/components/shared/avatar-uploader";
 import { GamesPicker } from "@/components/shared/games-picker";
+import { StateAvailabilityNotice, StateSelect } from "@/components/shared/state-select";
 import { StorePreferencesPicker } from "@/components/shared/store-preferences-picker";
 import { useAuth } from "@/lib/auth";
+import { AccountError } from "@/lib/account";
 import { useCatalog } from "@/lib/catalog/provider";
 import { gameOptions } from "@/lib/data/games";
+import { formatCep } from "@/lib/format-cep";
 import { formatPhone } from "@/lib/format-phone";
 import { passwordRequirements, isPasswordValid } from "@/lib/password";
 import { cn } from "@/lib/utils";
@@ -25,7 +28,7 @@ const steps = ["Seus dados", "Endereço", "Jogatina", "Segurança"];
 /** Nomes dos campos nativos (com `required`) de cada etapa, validados antes de avançar. */
 const stepFieldNames: string[][] = [
   ["fullName", "email", "phone"],
-  ["street", "neighborhood", "city", "state", "zip"],
+  ["street", "number", "neighborhood", "zip", "city"],
   [],
   [],
 ];
@@ -34,6 +37,7 @@ interface ReviewData {
   fullName: string;
   email: string;
   street: string;
+  number: string;
   neighborhood: string;
   city: string;
   state: string;
@@ -43,10 +47,12 @@ interface ReviewData {
 
 export function CreateAccountForm({ next }: { next?: string }) {
   const router = useRouter();
-  const { login } = useAuth();
+  const { signUp } = useAuth();
+  const [isCreating, setIsCreating] = useState(false);
   const { stores: freightStores } = useCatalog();
   const formRef = useRef<HTMLFormElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const isChangingStepRef = useRef(false);
 
   const [step, setStep] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
@@ -54,6 +60,7 @@ export function CreateAccountForm({ next }: { next?: string }) {
   const [contentHeight, setContentHeight] = useState<number | undefined>(undefined);
 
   const [phone, setPhone] = useState("");
+  const [uf, setUf] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
   const [games, setGames] = useState<GameTag[]>([]);
   const [customGames, setCustomGames] = useState<string[]>([]);
@@ -87,6 +94,10 @@ export function CreateAccountForm({ next }: { next?: string }) {
         return false;
       }
     }
+    if (index === 1 && !uf) {
+      setError("Selecione o estado.");
+      return false;
+    }
     return true;
   }
 
@@ -98,6 +109,9 @@ export function CreateAccountForm({ next }: { next?: string }) {
 
   /** Trava a altura atual, aplica a mudança de etapa e anima até a nova altura. */
   function animateStepChange(update: () => void) {
+    // Ignora cliques repetidos enquanto a transição não terminou (evita pular etapas).
+    if (isChangingStepRef.current) return;
+    isChangingStepRef.current = true;
     const el = contentRef.current;
     if (el) setContentHeight(el.getBoundingClientRect().height);
     requestAnimationFrame(() => {
@@ -105,6 +119,7 @@ export function CreateAccountForm({ next }: { next?: string }) {
       flushSync(update);
       const nextEl = contentRef.current;
       if (nextEl) setContentHeight(nextEl.scrollHeight);
+      isChangingStepRef.current = false;
     });
   }
 
@@ -117,9 +132,10 @@ export function CreateAccountForm({ next }: { next?: string }) {
         fullName: fieldValue("fullName"),
         email: fieldValue("email"),
         street: fieldValue("street"),
+        number: fieldValue("number"),
         neighborhood: fieldValue("neighborhood"),
         city: fieldValue("city"),
-        state: fieldValue("state"),
+        state: uf,
         zip: fieldValue("zip"),
         complement: fieldValue("complement"),
       };
@@ -143,29 +159,44 @@ export function CreateAccountForm({ next }: { next?: string }) {
     });
   }
 
-  function handleCreateAccount() {
-    if (!reviewData) return;
-    login({
-      name: reviewData.fullName,
-      email: reviewData.email,
-      avatarUrl,
-      phone,
-      address: {
-        street: reviewData.street,
-        neighborhood: reviewData.neighborhood,
-        city: reviewData.city,
-        state: reviewData.state,
-        zip: reviewData.zip,
-        complement: reviewData.complement || undefined,
-      },
-      games,
-      otherGames: games.includes("outro") ? customGames : undefined,
-      preferredStoreIds,
-      customPreferredStores: customStores.filter(
-        (store) => store.name.trim() && store.address.trim(),
-      ),
-    });
-    router.push(next || "/conta");
+  async function handleCreateAccount() {
+    if (!reviewData || isCreating) return;
+    setIsCreating(true);
+    setError(null);
+    try {
+      await signUp(
+        password,
+        {
+          name: reviewData.fullName,
+          email: reviewData.email.trim(),
+          phone,
+          address: {
+            street: reviewData.street,
+            number: reviewData.number,
+            neighborhood: reviewData.neighborhood,
+            city: reviewData.city,
+            state: reviewData.state,
+            zip: reviewData.zip,
+            complement: reviewData.complement || undefined,
+          },
+          games,
+          otherGames: games.includes("outro") ? customGames : undefined,
+          preferredStoreIds,
+          customPreferredStores: customStores.filter(
+            (store) => store.name.trim() && store.address.trim(),
+          ),
+        },
+        avatarUrl,
+      );
+      router.push(next || "/conta");
+    } catch (err) {
+      setError(
+        err instanceof AccountError
+          ? err.message
+          : "Não foi possível criar a conta. Tente novamente.",
+      );
+      setIsCreating(false);
+    }
   }
 
   const selectedStores = freightStores.filter((store) =>
@@ -276,15 +307,21 @@ export function CreateAccountForm({ next }: { next?: string }) {
           </section>
 
           <section className={cn("space-y-4", (showSummary || step !== 1) && "hidden")}>
-            <div className="space-y-1.5">
-              <Label htmlFor="street">Rua</Label>
-              <Input
-                id="street"
-                name="street"
-                type="text"
-                autoComplete="street-address"
-                required
-              />
+            <div className="grid grid-cols-[1fr_6.5rem] gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="street">Rua</Label>
+                <Input
+                  id="street"
+                  name="street"
+                  type="text"
+                  autoComplete="address-line1"
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="number">Número</Label>
+                <Input id="number" name="number" type="text" maxLength={10} required />
+              </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
@@ -299,6 +336,13 @@ export function CreateAccountForm({ next }: { next?: string }) {
                   type="text"
                   inputMode="numeric"
                   autoComplete="postal-code"
+                  placeholder="00000-000"
+                  maxLength={9}
+                  pattern="\d{5}-\d{3}"
+                  title="Informe o CEP no formato 00000-000"
+                  onChange={(event) => {
+                    event.target.value = formatCep(event.target.value);
+                  }}
                   required
                 />
               </div>
@@ -316,15 +360,10 @@ export function CreateAccountForm({ next }: { next?: string }) {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="state">Estado</Label>
-                <Input
-                  id="state"
-                  name="state"
-                  type="text"
-                  autoComplete="address-level1"
-                  required
-                />
+                <StateSelect id="state" value={uf} onChange={setUf} />
               </div>
             </div>
+            <StateAvailabilityNotice uf={uf} />
 
             <div className="space-y-1.5">
               <Label htmlFor="complement">
@@ -444,8 +483,8 @@ export function CreateAccountForm({ next }: { next?: string }) {
                 Endereço
               </p>
               <p>
-                {reviewData.street} — {reviewData.neighborhood}, {reviewData.city}/
-                {reviewData.state}, {reviewData.zip}
+                {reviewData.street}, {reviewData.number} — {reviewData.neighborhood},{" "}
+                {reviewData.city}/{reviewData.state}, {reviewData.zip}
                 {reviewData.complement ? ` (${reviewData.complement})` : ""}
               </p>
             </div>
@@ -536,8 +575,13 @@ export function CreateAccountForm({ next }: { next?: string }) {
         )}
 
         {showSummary ? (
-          <Button type="button" size="lg" onClick={handleCreateAccount}>
-            Criar conta
+          <Button
+            type="button"
+            size="lg"
+            onClick={handleCreateAccount}
+            disabled={isCreating}
+          >
+            {isCreating ? "Criando conta..." : "Criar conta"}
           </Button>
         ) : (
           <Button type="button" size="lg" onClick={goNext}>

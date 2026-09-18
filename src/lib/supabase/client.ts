@@ -1,13 +1,18 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+
+let browserClient: SupabaseClient | null = null;
 
 /**
- * Client-side Supabase client, safe to use in the browser — uses the
- * publishable key, which is not a secret. Not yet wired into any component;
- * the app still runs entirely on mock/localStorage data.
+ * Client Supabase para o navegador — usa a chave publicável (não é segredo) e
+ * mantém a sessão do usuário persistida. Singleton para não criar várias
+ * instâncias de Auth.
  */
-export function createBrowserClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-  );
+export function createBrowserClient(): SupabaseClient {
+  if (!browserClient) {
+    browserClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    );
+  }
+  return browserClient;
 }

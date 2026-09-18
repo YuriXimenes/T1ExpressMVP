@@ -30,7 +30,7 @@ function formatBRL(value: number) {
 
 export function PedidoView() {
   const router = useRouter();
-  const { isLoggedIn, user } = useAuth();
+  const { isLoggedIn, isReady, user } = useAuth();
   const order = usePendingOrder();
   const { stores: freightStores, coletaPartners, coupons } = useCatalog();
 
@@ -70,8 +70,8 @@ export function PedidoView() {
   }
 
   useEffect(() => {
-    if (!isLoggedIn) router.replace("/login?next=%2Fpedido");
-  }, [isLoggedIn, router]);
+    if (isReady && !isLoggedIn) router.replace("/login?next=%2Fpedido");
+  }, [isReady, isLoggedIn, router]);
 
   if (!isLoggedIn) return null;
 

@@ -35,13 +35,13 @@ function EmptyOrdersState({
 
 export function ContaView() {
   const router = useRouter();
-  const { isLoggedIn, user } = useAuth();
+  const { isLoggedIn, isReady, user } = useAuth();
   const { orders, markCompleted } = useMockOrders();
   const [tab, setTab] = useState<ContaTab>("ativos");
 
   useEffect(() => {
-    if (!isLoggedIn) router.replace("/login?next=%2Fconta");
-  }, [isLoggedIn, router]);
+    if (isReady && !isLoggedIn) router.replace("/login?next=%2Fconta");
+  }, [isReady, isLoggedIn, router]);
 
   if (!isLoggedIn) return null;
 

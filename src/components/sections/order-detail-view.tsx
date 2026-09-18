@@ -39,7 +39,7 @@ function formatBRL(value: number) {
 
 export function OrderDetailView({ orderId }: { orderId: string }) {
   const router = useRouter();
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, isReady } = useAuth();
   const { orders, markCompleted, addGroupToStore, addTicket } = useMockOrders();
   const { stores: freightStores, coletaPartners } = useCatalog();
   const order = orders.find((candidate) => candidate.id === orderId);
@@ -53,8 +53,8 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
   const [ticketMessage, setTicketMessage] = useState("");
 
   useEffect(() => {
-    if (!isLoggedIn) router.replace(`/login?next=%2Fpedidos%2F${orderId}`);
-  }, [isLoggedIn, orderId, router]);
+    if (isReady && !isLoggedIn) router.replace(`/login?next=%2Fpedidos%2F${orderId}`);
+  }, [isReady, isLoggedIn, orderId, router]);
 
   if (!isLoggedIn) return null;
 

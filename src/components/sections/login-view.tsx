@@ -8,11 +8,11 @@ import { LoginForm } from "@/components/sections/login-form";
 
 export function LoginView({ next }: { next?: string }) {
   const router = useRouter();
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, isReady } = useAuth();
 
   useEffect(() => {
-    if (isLoggedIn) router.replace("/conta");
-  }, [isLoggedIn, router]);
+    if (isReady && isLoggedIn) router.replace("/conta");
+  }, [isReady, isLoggedIn, router]);
 
   if (isLoggedIn) return null;
 
