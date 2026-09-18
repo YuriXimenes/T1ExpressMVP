@@ -4,11 +4,10 @@ import { HowItWorksSection } from "@/components/sections/how-it-works-section";
 import { RioNetworkSection } from "@/components/sections/rio-network-section";
 import { MarketComparisonSection } from "@/components/sections/market-comparison-section";
 import { ForShopsSection } from "@/components/sections/for-shops-section";
-import { getPickupPartners } from "@/lib/services/pickup-partners.service";
-import { storeLogos } from "@/lib/data/store-logos";
+import { getCatalog } from "@/lib/catalog/server";
 
 export default async function Home() {
-  const pickupPartners = await getPickupPartners();
+  const { pickupPartners, storeLogos } = await getCatalog();
 
   return (
     <>

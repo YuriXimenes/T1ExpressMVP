@@ -1,9 +1,6 @@
 import { Container } from "@/components/shared/container";
 import { cn } from "@/lib/utils";
-import {
-  marketComparisonCarriers,
-  marketComparisonRows,
-} from "@/lib/data/market-comparison";
+import { getCatalog } from "@/lib/catalog/server";
 import type { ComparisonStatus } from "@/lib/types/market-comparison";
 
 const dotStyles: Record<ComparisonStatus, string> = {
@@ -33,7 +30,10 @@ function DetailText({ text }: { text: string }) {
   );
 }
 
-export function MarketComparisonSection() {
+export async function MarketComparisonSection() {
+  const { marketComparison } = await getCatalog();
+  const marketComparisonCarriers = marketComparison.carriers;
+  const marketComparisonRows = marketComparison.rows;
   const columns = marketComparisonCarriers.length;
 
   return (

@@ -5,7 +5,7 @@ import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FreightStoreCard } from "@/components/shared/freight-store-card";
-import { freightStores } from "@/lib/data/freight-stores";
+import { useCatalog } from "@/lib/catalog/provider";
 import type { CustomPreferredStore } from "@/lib/types/signup";
 
 export function StorePreferencesPicker({
@@ -19,6 +19,7 @@ export function StorePreferencesPicker({
   customStores: CustomPreferredStore[];
   setCustomStores: Dispatch<SetStateAction<CustomPreferredStore[]>>;
 }) {
+  const { stores: freightStores } = useCatalog();
   const [showCustomStoreForm, setShowCustomStoreForm] = useState(customStores.length > 0);
 
   function toggleStore(id: string) {

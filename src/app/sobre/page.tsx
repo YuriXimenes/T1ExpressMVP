@@ -17,7 +17,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { OurStorySection } from "@/components/sections/our-story-section";
 import { StoreLogosSection } from "@/components/sections/store-logos-section";
-import { storeLogos } from "@/lib/data/store-logos";
+import { getCatalog } from "@/lib/catalog/server";
 
 export const metadata: Metadata = {
   title: "Sobre",
@@ -74,7 +74,9 @@ const differentiators = [
   },
 ];
 
-export default function SobrePage() {
+export default async function SobrePage() {
+  const { stores, storeLogos } = await getCatalog();
+
   return (
     <>
       <section className="relative flex flex-1 flex-col justify-center overflow-hidden bg-slate-50 py-12 md:py-16">
@@ -92,7 +94,7 @@ export default function SobrePage() {
           </div>
 
           <div className="mt-12">
-            <OurStorySection />
+            <OurStorySection storeCount={stores.length} />
           </div>
 
           <div className="mt-16">

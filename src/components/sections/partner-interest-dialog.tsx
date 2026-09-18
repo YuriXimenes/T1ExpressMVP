@@ -25,7 +25,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { GamesPicker } from "@/components/shared/games-picker";
 import { InfoTooltip } from "@/components/shared/info-tooltip";
-import { brazilStates } from "@/lib/data/brazil-states";
+import { useCatalog } from "@/lib/catalog/provider";
 import { formatPhone } from "@/lib/format-phone";
 import type { GameTag } from "@/lib/types/signup";
 
@@ -62,6 +62,7 @@ function emptyForm(): FormState {
 }
 
 export function PartnerInterestDialog({ trigger }: { trigger: ReactNode }) {
+  const { brazilStates } = useCatalog();
   const [open, setOpen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);

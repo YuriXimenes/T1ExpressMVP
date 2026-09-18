@@ -1,18 +1,29 @@
-import { freightStores } from "@/lib/data/freight-stores";
-import { CORREIOS_FLAT_RATE_BRL, freightRoutes } from "@/lib/data/freight-routes";
 import type {
   CompetitorQuote,
   FreightQuoteRequest,
   FreightQuoteResult,
 } from "@/lib/types/freight";
+import type { FreightRouteQuote } from "@/lib/types/freight-route";
+import type { FreightStore } from "@/lib/types/freight-store";
 
 /** Custo marginal de cada loja de coleta além da primeira — usado tanto na cotação quanto para adicionar lojas depois do pedido feito. */
 export const EXTRA_ORIGIN_STORE_FEE_BRL = 3;
 
-export function simulateFreight({
-  originStoreIds,
-  destinationStoreId,
-}: FreightQuoteRequest): FreightQuoteResult {
+/** Dados de referência que alimentam a cotação (vêm do catálogo). */
+export interface FreightPricingData {
+  stores: FreightStore[];
+  routes: FreightRouteQuote[];
+  correiosFlatRateBRL: number;
+}
+
+export function simulateFreight(
+  { originStoreIds, destinationStoreId }: FreightQuoteRequest,
+  {
+    stores: freightStores,
+    routes: freightRoutes,
+    correiosFlatRateBRL: CORREIOS_FLAT_RATE_BRL,
+  }: FreightPricingData,
+): FreightQuoteResult {
   const origins = originStoreIds.map((id) => {
     const store = freightStores.find((s) => s.id === id);
     if (!store) throw new Error("Loja de origem inválida.");

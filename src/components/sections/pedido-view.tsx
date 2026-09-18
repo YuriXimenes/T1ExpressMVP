@@ -19,8 +19,7 @@ import { usePendingOrder, clearPendingOrder } from "@/lib/pending-order";
 import { createMockOrder } from "@/lib/mock-orders";
 import { computeInsuranceInfo, BASE_INSURANCE_COVERAGE_BRL } from "@/lib/insurance";
 import { applyCoupon, type CouponResult } from "@/lib/data/coupons";
-import { freightStores } from "@/lib/data/freight-stores";
-import { coletaPartners } from "@/lib/data/coleta-partners";
+import { useCatalog } from "@/lib/catalog/provider";
 import { cn } from "@/lib/utils";
 import type { PedidoGroup } from "@/lib/types/order";
 import type { MockOrder } from "@/lib/types/mock-order";
@@ -33,6 +32,7 @@ export function PedidoView() {
   const router = useRouter();
   const { isLoggedIn, user } = useAuth();
   const order = usePendingOrder();
+  const { stores: freightStores, coletaPartners, coupons } = useCatalog();
 
   const origins = order
     ? freightStores.filter((store) => order.originStoreIds.includes(store.id))
@@ -105,7 +105,7 @@ export function PedidoView() {
   const selectedStore = originPartners.find((partner) => partner.id === selectedStoreId);
 
   function handleApplyCoupon() {
-    const result = applyCoupon(couponCode, order!.quote.priceBRL);
+    const result = applyCoupon(couponCode, order!.quote.priceBRL, coupons);
     if (!result) {
       setAppliedCoupon(null);
       setCouponError("Cupom inválido.");

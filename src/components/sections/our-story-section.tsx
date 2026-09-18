@@ -1,11 +1,8 @@
 import Image from "next/image";
 import { Route } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { freightStores } from "@/lib/data/freight-stores";
 
-export function OurStorySection() {
-  const storeCount = freightStores.length;
-
+export function OurStorySection({ storeCount }: { storeCount: number }) {
   return (
     <Card className="from-brand-700 via-brand-800 to-brand-950 gap-0 overflow-hidden border-0 bg-gradient-to-br p-0 text-white ring-0">
       <div className="flex flex-col-reverse items-center gap-6 p-6 text-center sm:flex-row sm:items-center sm:gap-10 sm:p-8 sm:text-left lg:p-10">

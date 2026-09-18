@@ -16,7 +16,7 @@ import { useMockOrders } from "@/lib/mock-orders";
 import { makePedidoGroup } from "@/lib/order-helpers";
 import { computeInsuranceInfo } from "@/lib/insurance";
 import { EXTRA_ORIGIN_STORE_FEE_BRL } from "@/lib/data/freight-simulation";
-import { coletaPartners } from "@/lib/data/coleta-partners";
+import { useCatalog } from "@/lib/catalog/provider";
 import { cn } from "@/lib/utils";
 import type { PedidoGroup } from "@/lib/types/order";
 import type { MockOrder } from "@/lib/types/mock-order";
@@ -36,6 +36,7 @@ export function AddStoreFlow({
 }) {
   const router = useRouter();
   const { addStore } = useMockOrders();
+  const { coletaPartners } = useCatalog();
   const newPartners = coletaPartners.filter((partner) =>
     newStoreIds.includes(partner.id),
   );

@@ -29,8 +29,7 @@ import { useAuth } from "@/lib/auth";
 import { useMockOrders } from "@/lib/mock-orders";
 import { makePedidoGroup, computeTotalPaidBRL } from "@/lib/order-helpers";
 import { EXTRA_ORIGIN_STORE_FEE_BRL } from "@/lib/data/freight-simulation";
-import { freightStores } from "@/lib/data/freight-stores";
-import { coletaPartners } from "@/lib/data/coleta-partners";
+import { useCatalog } from "@/lib/catalog/provider";
 import { cn } from "@/lib/utils";
 import type { PedidoGroup } from "@/lib/types/order";
 
@@ -42,6 +41,7 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
   const router = useRouter();
   const { isLoggedIn } = useAuth();
   const { orders, markCompleted, addGroupToStore, addTicket } = useMockOrders();
+  const { stores: freightStores, coletaPartners } = useCatalog();
   const order = orders.find((candidate) => candidate.id === orderId);
 
   const [pickerOpen, setPickerOpen] = useState(false);

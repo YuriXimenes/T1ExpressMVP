@@ -7,16 +7,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { freightStores } from "@/lib/data/freight-stores";
+import { useCatalog } from "@/lib/catalog/provider";
 import { computeTotalPaidBRL, getOrderStatusLabel } from "@/lib/order-helpers";
 import { cn } from "@/lib/utils";
+import type { FreightStore } from "@/lib/types/freight-store";
 import type { MockOrder } from "@/lib/types/mock-order";
 
 function formatBRL(value: number) {
   return `R$ ${value.toFixed(2).replace(".", ",")}`;
 }
 
-function LogoCircle({ store }: { store: (typeof freightStores)[number] }) {
+function LogoCircle({ store }: { store: FreightStore }) {
   return (
     <span
       className={cn(
@@ -43,6 +44,7 @@ export function MockOrderCard({
   onMarkCompleted?: () => void;
 }) {
   const router = useRouter();
+  const { stores: freightStores } = useCatalog();
   const origins = freightStores.filter((store) =>
     order.originStoreIds.includes(store.id),
   );

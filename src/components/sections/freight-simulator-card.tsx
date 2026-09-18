@@ -19,6 +19,7 @@ import { FreightStoreCard } from "@/components/shared/freight-store-card";
 import { FreightStorePickerDialog } from "@/components/shared/freight-store-picker-dialog";
 import { getFreightQuote } from "@/lib/services/freight.service";
 import { useAuth } from "@/lib/auth";
+import { useCatalog } from "@/lib/catalog/provider";
 import { savePendingOrder } from "@/lib/pending-order";
 import { cn } from "@/lib/utils";
 import type { FreightStore } from "@/lib/types/freight-store";
@@ -39,6 +40,7 @@ export function FreightSimulatorCard({
 }) {
   const router = useRouter();
   const { isLoggedIn } = useAuth();
+  const catalog = useCatalog();
 
   const [originIds, setOriginIds] = useState<string[]>([]);
   const [destinationId, setDestinationId] = useState<string>("");
@@ -65,10 +67,14 @@ export function FreightSimulatorCard({
     setIsLoading(true);
     setError(null);
     try {
-      const quote = await getFreightQuote({
-        originStoreIds: originIds,
-        destinationStoreId: destinationId,
-      });
+      const quote = await getFreightQuote(
+        { originStoreIds: originIds, destinationStoreId: destinationId },
+        {
+          stores: catalog.stores,
+          routes: catalog.freightRoutes,
+          correiosFlatRateBRL: catalog.correiosFlatRateBRL,
+        },
+      );
       setResult(quote);
     } catch {
       setError("Não foi possível calcular o frete. Tente novamente.");

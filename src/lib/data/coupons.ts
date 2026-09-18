@@ -15,9 +15,13 @@ export interface CouponResult {
   discountBRL: number;
 }
 
-export function applyCoupon(code: string, freightPriceBRL: number): CouponResult | null {
+export function applyCoupon(
+  code: string,
+  freightPriceBRL: number,
+  availableCoupons: Coupon[],
+): CouponResult | null {
   const normalized = code.trim().toUpperCase();
-  const coupon = coupons.find((c) => c.code === normalized);
+  const coupon = availableCoupons.find((c) => c.code === normalized);
   if (!coupon) return null;
 
   const raw =

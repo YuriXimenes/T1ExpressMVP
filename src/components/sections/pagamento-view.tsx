@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/card";
 import { PaymentMethodPanel } from "@/components/shared/payment-method-panel";
 import { useAuth } from "@/lib/auth";
 import { useMockOrders } from "@/lib/mock-orders";
-import { freightStores } from "@/lib/data/freight-stores";
+import { useCatalog } from "@/lib/catalog/provider";
 import { EXTRA_ORIGIN_STORE_FEE_BRL } from "@/lib/data/freight-simulation";
 import type { PaymentMethod } from "@/lib/types/mock-order";
 
@@ -52,6 +52,7 @@ export function PagamentoView({
   const router = useRouter();
   const { isLoggedIn } = useAuth();
   const { orders, markActive, resolveCharge } = useMockOrders();
+  const { stores: freightStores } = useCatalog();
   const order = orderId
     ? orders.find((candidate) => candidate.id === orderId)
     : undefined;

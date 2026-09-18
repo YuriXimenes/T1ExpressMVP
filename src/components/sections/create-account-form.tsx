@@ -13,7 +13,7 @@ import { AvatarUploader } from "@/components/shared/avatar-uploader";
 import { GamesPicker } from "@/components/shared/games-picker";
 import { StorePreferencesPicker } from "@/components/shared/store-preferences-picker";
 import { useAuth } from "@/lib/auth";
-import { freightStores } from "@/lib/data/freight-stores";
+import { useCatalog } from "@/lib/catalog/provider";
 import { gameOptions } from "@/lib/data/games";
 import { formatPhone } from "@/lib/format-phone";
 import { passwordRequirements, isPasswordValid } from "@/lib/password";
@@ -44,6 +44,7 @@ interface ReviewData {
 export function CreateAccountForm({ next }: { next?: string }) {
   const router = useRouter();
   const { login } = useAuth();
+  const { stores: freightStores } = useCatalog();
   const formRef = useRef<HTMLFormElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 

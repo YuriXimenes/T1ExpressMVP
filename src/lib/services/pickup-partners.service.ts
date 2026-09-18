@@ -1,11 +1,10 @@
-import { pickupPartners } from "@/lib/data/pickup-partners";
-import { coletaPartners } from "@/lib/data/coleta-partners";
+import { getCatalog } from "@/lib/catalog/server";
 import type { PickupPartner } from "@/lib/types/pickup-partner";
 
 export async function getPickupPartners(): Promise<PickupPartner[]> {
-  return pickupPartners;
+  return (await getCatalog()).pickupPartners;
 }
 
 export async function getColetaPartners(): Promise<PickupPartner[]> {
-  return coletaPartners;
+  return (await getCatalog()).coletaPartners;
 }
