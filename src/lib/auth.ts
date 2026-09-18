@@ -94,7 +94,11 @@ const getServerReadySnapshot = () => false;
 async function currentUserId(): Promise<string> {
   const { data } = await createBrowserClient().auth.getSession();
   const id = data.session?.user.id;
-  if (!id) throw new account.AccountError("Sua sessão expirou. Entre novamente.");
+  if (!id) {
+    // Sessão perdida: desfaz o "logado" da tela para as páginas protegidas irem ao login.
+    writeCache(null);
+    throw new account.AccountError("Sua sessão expirou. Entre novamente.");
+  }
   return id;
 }
 

@@ -15,6 +15,7 @@ import { StateAvailabilityNotice, StateSelect } from "@/components/shared/state-
 import { StorePreferencesPicker } from "@/components/shared/store-preferences-picker";
 import { useAuth } from "@/lib/auth";
 import { AccountError } from "@/lib/account";
+import { safeNext } from "@/lib/safe-next";
 import { useCatalog } from "@/lib/catalog/provider";
 import { gameOptions } from "@/lib/data/games";
 import { formatCep } from "@/lib/format-cep";
@@ -188,7 +189,7 @@ export function CreateAccountForm({ next }: { next?: string }) {
         },
         avatarUrl,
       );
-      router.push(next || "/conta");
+      router.push(safeNext(next));
     } catch (err) {
       setError(
         err instanceof AccountError

@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
+import { safeNext } from "@/lib/safe-next";
 import { LoginAccessPanel } from "@/components/illustrations/login-access-panel";
 import { LoginForm } from "@/components/sections/login-form";
 
@@ -11,8 +12,8 @@ export function LoginView({ next }: { next?: string }) {
   const { isLoggedIn, isReady } = useAuth();
 
   useEffect(() => {
-    if (isReady && isLoggedIn) router.replace("/conta");
-  }, [isReady, isLoggedIn, router]);
+    if (isReady && isLoggedIn) router.replace(safeNext(next));
+  }, [isReady, isLoggedIn, next, router]);
 
   if (isLoggedIn) return null;
 

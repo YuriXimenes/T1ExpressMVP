@@ -35,6 +35,10 @@ function friendlyAuthError(message: string): string {
     return "Já existe uma conta com esse e-mail. Tente entrar.";
   if (m.includes("rate limit") || m.includes("too many"))
     return "Muitas tentativas. Aguarde um pouco e tente de novo.";
+  if (m.includes("different from the old password"))
+    return "A nova senha precisa ser diferente da atual.";
+  if (m.includes("session") || m.includes("not authenticated"))
+    return "Link inválido ou expirado. Peça um novo link.";
   if (m.includes("password")) return "A senha não atende aos requisitos.";
   if (m.includes("email")) return "Confira o e-mail informado.";
   if (m.includes("failed to fetch") || m.includes("network"))
@@ -234,6 +238,25 @@ async function finishSession(authUser: User): Promise<MockUser> {
       email: authUser.email ?? "",
     }
   );
+}
+
+/**
+ * Pede o e-mail de recuperação. O Supabase responde igual para e-mails com e
+ * sem conta, então quem chama deve mostrar sempre a mesma mensagem.
+ */
+export async function requestPasswordReset(email: string): Promise<void> {
+  const { error } = await createBrowserClient().auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/redefinir-senha`,
+  });
+  if (error) throw new AccountError(friendlyAuthError(error.message));
+}
+
+/** Troca a senha do usuário logado (inclusive pela sessão de recuperação). */
+export async function updatePassword(newPassword: string): Promise<void> {
+  const { error } = await createBrowserClient().auth.updateUser({
+    password: newPassword,
+  });
+  if (error) throw new AccountError(friendlyAuthError(error.message));
 }
 
 export async function signOut() {

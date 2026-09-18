@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Container } from "@/components/shared/container";
 import { InteractiveGridBackground } from "@/components/shared/interactive-grid-background";
+import { LoggedInRedirect } from "@/components/shared/logged-in-redirect";
 import { TcgCardsPanel } from "@/components/illustrations/tcg-cards-panel";
 import { CreateAccountForm } from "@/components/sections/create-account-form";
 
@@ -18,6 +19,7 @@ export default async function CreateAccountPage({
   return (
     <section className="relative overflow-hidden bg-slate-50 py-10 md:py-14">
       <InteractiveGridBackground />
+      <LoggedInRedirect next={next} />
 
       <Container className="relative">
         <div className="mx-auto flex min-h-[620px] w-full max-w-4xl overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-slate-900/5">
