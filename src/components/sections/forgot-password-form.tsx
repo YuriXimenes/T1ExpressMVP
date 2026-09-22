@@ -59,6 +59,7 @@ export function ForgotPasswordForm() {
       ) : null}
 
       <form
+        method="post"
         className="mt-4 flex flex-col gap-4"
         onSubmit={(event) => {
           event.preventDefault();

@@ -36,6 +36,8 @@ export function PedidoSummary({
   amountDueBRL,
   onBack,
   onConfirm,
+  isConfirming = false,
+  confirmError = null,
 }: {
   originPartners: PickupPartner[];
   ordersByStore: Record<string, PedidoGroup[]>;
@@ -57,6 +59,8 @@ export function PedidoSummary({
   amountDueBRL: number;
   onBack: () => void;
   onConfirm: () => void;
+  isConfirming?: boolean;
+  confirmError?: string | null;
 }) {
   return (
     <div className="mx-auto max-w-2xl">
@@ -83,6 +87,7 @@ export function PedidoSummary({
           id="delivery-note"
           rows={3}
           value={deliveryNote}
+          maxLength={2000}
           onChange={(event) => onDeliveryNoteChange(event.target.value)}
           placeholder="Ex.: entregar no período da tarde, portaria 24h, etc. (opcional)"
         />
@@ -170,8 +175,19 @@ export function PedidoSummary({
           <span className="text-brand-700 font-bold">{formatBRL(amountDueBRL)}</span>
         </div>
 
-        <Button size="lg" className="mt-2 w-full" onClick={onConfirm}>
-          Realizar pedido
+        {confirmError && (
+          <p role="alert" className="text-sm text-red-600">
+            {confirmError}
+          </p>
+        )}
+
+        <Button
+          size="lg"
+          className="mt-2 w-full"
+          onClick={onConfirm}
+          disabled={isConfirming}
+        >
+          {isConfirming ? "Realizando pedido..." : "Realizar pedido"}
         </Button>
       </Card>
     </div>

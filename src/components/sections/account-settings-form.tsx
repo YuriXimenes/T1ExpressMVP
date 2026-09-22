@@ -64,6 +64,7 @@ export function AccountSettingsForm() {
         />
 
         <form
+          method="post"
           className="flex flex-col gap-8"
           onSubmit={async (event) => {
             event.preventDefault();

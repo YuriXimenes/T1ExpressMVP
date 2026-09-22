@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AccountSettingsForm } from "@/components/sections/account-settings-form";
 import { MockOrderCard } from "@/components/sections/mock-order-card";
 import { useAuth } from "@/lib/auth";
-import { useMockOrders } from "@/lib/mock-orders";
+import { useOrders, OrderError } from "@/lib/orders/store";
 import { cn } from "@/lib/utils";
 
 type ContaTab = "ativos" | "historico" | "configuracoes";
@@ -36,7 +36,8 @@ function EmptyOrdersState({
 export function ContaView() {
   const router = useRouter();
   const { isLoggedIn, isReady, user } = useAuth();
-  const { orders, markCompleted } = useMockOrders();
+  const { orders, isLoading, status, error, refresh, markCompleted } = useOrders();
+  const [actionError, setActionError] = useState<string | null>(null);
   const [tab, setTab] = useState<ContaTab>("ativos");
 
   useEffect(() => {
@@ -47,6 +48,31 @@ export function ContaView() {
 
   const activeOrders = orders.filter((order) => order.status === "active");
   const historyOrders = orders.filter((order) => order.status === "completed");
+
+  async function handleMarkCompleted(orderId: string) {
+    setActionError(null);
+    try {
+      await markCompleted(orderId);
+    } catch (err) {
+      setActionError(
+        err instanceof OrderError
+          ? err.message
+          : "Não foi possível concluir o pedido. Tente novamente.",
+      );
+    }
+  }
+
+  // Enquanto os pedidos carregam (ou se falharam), mostra isso no lugar da lista.
+  const ordersNotice = isLoading ? (
+    <p className="py-10 text-center text-sm text-slate-600">Carregando pedidos...</p>
+  ) : status === "error" && orders.length === 0 ? (
+    <div className="py-10 text-center">
+      <p className="text-sm text-slate-600">{error}</p>
+      <Button className="mt-4" variant="outline" onClick={() => void refresh()}>
+        Tentar de novo
+      </Button>
+    </div>
+  ) : null;
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -100,7 +126,14 @@ export function ContaView() {
         </TabsList>
 
         <TabsContent value="ativos">
-          {activeOrders.length === 0 ? (
+          {actionError && (
+            <p role="alert" className="mt-4 text-sm text-red-600">
+              {actionError}
+            </p>
+          )}
+          {ordersNotice ? (
+            ordersNotice
+          ) : activeOrders.length === 0 ? (
             <EmptyOrdersState
               title="Você ainda não tem pedidos ativos"
               description="Assim que você simular um frete e confirmar um pedido, ele aparece aqui."
@@ -111,7 +144,7 @@ export function ContaView() {
                 <MockOrderCard
                   key={order.id}
                   order={order}
-                  onMarkCompleted={() => markCompleted(order.id)}
+                  onMarkCompleted={() => void handleMarkCompleted(order.id)}
                 />
               ))}
             </div>
@@ -119,7 +152,9 @@ export function ContaView() {
         </TabsContent>
 
         <TabsContent value="historico">
-          {historyOrders.length === 0 ? (
+          {ordersNotice ? (
+            ordersNotice
+          ) : historyOrders.length === 0 ? (
             <EmptyOrdersState
               title="Nenhum pedido no histórico ainda"
               description="Pedidos concluídos ou cancelados vão aparecer aqui."

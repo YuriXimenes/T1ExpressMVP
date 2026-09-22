@@ -5,7 +5,7 @@ import { createBrowserClient } from "@/lib/supabase/client";
 import type { MockUser } from "@/lib/auth";
 import type { GameTag } from "@/lib/types/signup";
 
-const ORDERS_KEY = "t1-express:mock-orders";
+const LEGACY_MOCK_ORDERS_KEY = "t1-express:mock-orders";
 const PENDING_ORDER_KEY = "t1-express:pending-order";
 const ORDERS_OWNER_KEY = "t1-express:orders-owner";
 
@@ -170,17 +170,18 @@ export async function uploadAvatar(userId: string, dataUrl: string): Promise<str
 }
 
 /**
- * Pedidos (ainda mock) ficam no localStorage do navegador. Para não vazarem
- * entre contas, limpamos quando o usuário logado muda.
+ * Os pedidos agora vêm do Supabase; o que sobra no navegador é só o pedido
+ * pendente da simulação de frete (sessionStorage). Para ele não vazar entre
+ * contas, limpamos quando o usuário logado muda. Também apagamos, uma vez, os
+ * pedidos de teste do antigo mock em localStorage.
  */
 export function claimLocalDataFor(userId: string | null) {
+  window.localStorage.removeItem(LEGACY_MOCK_ORDERS_KEY);
   const owner = window.localStorage.getItem(ORDERS_OWNER_KEY);
   if (userId !== null && owner === userId) return;
-  window.localStorage.removeItem(ORDERS_KEY);
   window.sessionStorage.removeItem(PENDING_ORDER_KEY);
   if (userId === null) window.localStorage.removeItem(ORDERS_OWNER_KEY);
   else window.localStorage.setItem(ORDERS_OWNER_KEY, userId);
-  window.dispatchEvent(new StorageEvent("storage", { key: ORDERS_KEY }));
 }
 
 export async function signIn(email: string, password: string): Promise<MockUser> {

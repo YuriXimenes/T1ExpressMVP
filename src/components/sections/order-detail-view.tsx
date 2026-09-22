@@ -26,12 +26,18 @@ import { AddStoreFlow } from "@/components/sections/add-store-flow";
 import { FreightStorePickerDialog } from "@/components/shared/freight-store-picker-dialog";
 import { InfoTooltip } from "@/components/shared/info-tooltip";
 import { useAuth } from "@/lib/auth";
-import { useMockOrders } from "@/lib/mock-orders";
+import { useOrders, OrderError } from "@/lib/orders/store";
 import { makePedidoGroup, computeTotalPaidBRL } from "@/lib/order-helpers";
 import { EXTRA_ORIGIN_STORE_FEE_BRL } from "@/lib/data/freight-simulation";
 import { useCatalog } from "@/lib/catalog/provider";
 import { cn } from "@/lib/utils";
 import type { PedidoGroup } from "@/lib/types/order";
+
+function actionErrorMessage(err: unknown) {
+  return err instanceof OrderError
+    ? err.message
+    : "Não foi possível concluir a ação. Tente novamente.";
+}
 
 function formatBRL(value: number) {
   return `R$ ${value.toFixed(2).replace(".", ",")}`;
@@ -40,7 +46,16 @@ function formatBRL(value: number) {
 export function OrderDetailView({ orderId }: { orderId: string }) {
   const router = useRouter();
   const { isLoggedIn, isReady } = useAuth();
-  const { orders, markCompleted, addGroupToStore, addTicket } = useMockOrders();
+  const {
+    orders,
+    isLoading,
+    status,
+    error: loadError,
+    refresh,
+    markCompleted,
+    addGroupsToStore,
+    addTicket,
+  } = useOrders();
   const { stores: freightStores, coletaPartners } = useCatalog();
   const order = orders.find((candidate) => candidate.id === orderId);
 
@@ -51,12 +66,33 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
   const [ticketDialogOpen, setTicketDialogOpen] = useState(false);
   const [ticketSubject, setTicketSubject] = useState("");
   const [ticketMessage, setTicketMessage] = useState("");
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [isSavingPedido, setIsSavingPedido] = useState(false);
+  const [isSavingTicket, setIsSavingTicket] = useState(false);
 
   useEffect(() => {
     if (isReady && !isLoggedIn) router.replace(`/login?next=%2Fpedidos%2F${orderId}`);
   }, [isReady, isLoggedIn, orderId, router]);
 
   if (!isLoggedIn) return null;
+
+  if (isLoading) {
+    return <p className="text-center text-slate-600">Carregando pedido...</p>;
+  }
+
+  if (!order && status === "error") {
+    return (
+      <div className="mx-auto max-w-md text-center">
+        <h1 className="text-2xl font-bold text-slate-900">
+          Não foi possível carregar o pedido
+        </h1>
+        <p className="mt-2 text-slate-600">{loadError}</p>
+        <Button size="lg" className="mt-6" onClick={() => void refresh()}>
+          Tentar de novo
+        </Button>
+      </div>
+    );
+  }
 
   if (!order) {
     return (
@@ -115,12 +151,18 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
     setDraftGroups([]);
   }
 
-  function saveAddingPedido() {
-    if (!addingStoreId) return;
-    for (const group of draftGroups) {
-      addGroupToStore(order!.id, addingStoreId, group);
+  async function saveAddingPedido() {
+    if (!addingStoreId || isSavingPedido) return;
+    setIsSavingPedido(true);
+    setActionError(null);
+    try {
+      await addGroupsToStore(order!.id, addingStoreId, draftGroups);
+      cancelAddingPedido();
+    } catch (err) {
+      setActionError(actionErrorMessage(err));
+    } finally {
+      setIsSavingPedido(false);
     }
-    cancelAddingPedido();
   }
 
   function handleAddStores(ids: string[]) {
@@ -128,17 +170,29 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
     setNewStoreIds(ids);
   }
 
-  function handleOpenTicket() {
-    if (!ticketSubject.trim() || !ticketMessage.trim()) return;
-    addTicket(order!.id, {
-      id: crypto.randomUUID(),
-      subject: ticketSubject.trim(),
-      message: ticketMessage.trim(),
-      createdAt: new Date().toISOString(),
-    });
-    setTicketSubject("");
-    setTicketMessage("");
-    setTicketDialogOpen(false);
+  async function handleOpenTicket() {
+    if (!ticketSubject.trim() || !ticketMessage.trim() || isSavingTicket) return;
+    setIsSavingTicket(true);
+    setActionError(null);
+    try {
+      await addTicket(order!.id, ticketSubject.trim(), ticketMessage.trim());
+      setTicketSubject("");
+      setTicketMessage("");
+      setTicketDialogOpen(false);
+    } catch (err) {
+      setActionError(actionErrorMessage(err));
+    } finally {
+      setIsSavingTicket(false);
+    }
+  }
+
+  async function handleMarkCompleted() {
+    setActionError(null);
+    try {
+      await markCompleted(order!.id);
+    } catch (err) {
+      setActionError(actionErrorMessage(err));
+    }
   }
 
   return (
@@ -156,6 +210,15 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
         </h1>
         <p className="text-slate-600">Solicitado em {requestedDate}</p>
       </div>
+
+      {actionError && (
+        <p
+          role="alert"
+          className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+        >
+          {actionError}
+        </p>
+      )}
 
       {pendingCharge && (
         <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
@@ -180,7 +243,7 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
         <div className="space-y-4">
           <OrderStatusTracker
             order={order}
-            onMarkCompleted={() => markCompleted(order!.id)}
+            onMarkCompleted={() => void handleMarkCompleted()}
           />
 
           <Card className="gap-3 p-6">
@@ -345,6 +408,7 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
                       <Input
                         id="ticket-subject"
                         value={ticketSubject}
+                        maxLength={200}
                         onChange={(event) => setTicketSubject(event.target.value)}
                         placeholder="Ex.: Atraso na coleta"
                       />
@@ -355,6 +419,7 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
                         id="ticket-message"
                         rows={4}
                         value={ticketMessage}
+                        maxLength={5000}
                         onChange={(event) => setTicketMessage(event.target.value)}
                         placeholder="Descreva o problema..."
                       />
@@ -363,10 +428,12 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
                   <DialogFooter>
                     <Button
                       type="button"
-                      onClick={handleOpenTicket}
-                      disabled={!ticketSubject.trim() || !ticketMessage.trim()}
+                      onClick={() => void handleOpenTicket()}
+                      disabled={
+                        !ticketSubject.trim() || !ticketMessage.trim() || isSavingTicket
+                      }
                     >
-                      Enviar chamado
+                      {isSavingTicket ? "Enviando..." : "Enviar chamado"}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
@@ -410,8 +477,12 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
                           onChange={setDraftGroups}
                         />
                         <div className="flex gap-2">
-                          <Button size="sm" onClick={saveAddingPedido}>
-                            Salvar
+                          <Button
+                            size="sm"
+                            onClick={() => void saveAddingPedido()}
+                            disabled={isSavingPedido}
+                          >
+                            {isSavingPedido ? "Salvando..." : "Salvar"}
                           </Button>
                           <Button size="sm" variant="ghost" onClick={cancelAddingPedido}>
                             Cancelar

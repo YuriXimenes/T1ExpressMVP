@@ -12,7 +12,7 @@ import {
   StoreOrderBuilder,
   orderGroupTotal,
 } from "@/components/sections/store-order-builder";
-import { useMockOrders } from "@/lib/mock-orders";
+import { useOrders, OrderError } from "@/lib/orders/store";
 import { makePedidoGroup } from "@/lib/order-helpers";
 import { computeInsuranceInfo } from "@/lib/insurance";
 import { EXTRA_ORIGIN_STORE_FEE_BRL } from "@/lib/data/freight-simulation";
@@ -35,7 +35,7 @@ export function AddStoreFlow({
   onCancel: () => void;
 }) {
   const router = useRouter();
-  const { addStore } = useMockOrders();
+  const { addStore } = useOrders();
   const { coletaPartners } = useCatalog();
   const newPartners = coletaPartners.filter((partner) =>
     newStoreIds.includes(partner.id),
@@ -46,11 +46,19 @@ export function AddStoreFlow({
   >(() => Object.fromEntries(newStoreIds.map((id) => [id, [makePedidoGroup()]])));
   const [showSummary, setShowSummary] = useState(false);
   const [insuranceOptedIn, setInsuranceOptedIn] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
 
-  const addedItemsTotal = newStoreIds.reduce((sum, storeId) => {
-    const groups = draftOrdersByStore[storeId] ?? [];
-    return sum + groups.reduce((groupSum, group) => groupSum + orderGroupTotal(group), 0);
-  }, 0);
+  // Em centavos: evita que erro de ponto flutuante mude o tier do seguro.
+  const addedItemsTotal =
+    Math.round(
+      newStoreIds.reduce((sum, storeId) => {
+        const groups = draftOrdersByStore[storeId] ?? [];
+        return (
+          sum + groups.reduce((groupSum, group) => groupSum + orderGroupTotal(group), 0)
+        );
+      }, 0) * 100,
+    ) / 100;
   const previousItemsTotal = order.itemsTotal;
   const newItemsTotal = previousItemsTotal + addedItemsTotal;
   const newInsuranceInfo = computeInsuranceInfo(newItemsTotal);
@@ -62,21 +70,26 @@ export function AddStoreFlow({
   const storeFeeBRL = EXTRA_ORIGIN_STORE_FEE_BRL * newStoreIds.length;
   const amountDueBRL = storeFeeBRL + insuranceUpgradeCostBRL;
 
-  function handleConfirm() {
-    const chargeId = addStore(order.id, {
-      storeIds: newStoreIds,
-      draftOrdersByStore,
-      itemsTotalAdded: addedItemsTotal,
-      amountBRL: amountDueBRL,
-      insuranceUpgrade:
-        needsInsuranceUpgrade && insuranceOptedIn
-          ? {
-              coverageAmountBRL: newInsuranceInfo.coverageNeededBRL,
-              extraCostBRL: newInsuranceInfo.extraCostBRL,
-            }
-          : undefined,
-    });
-    router.push(`/pagamento?order=${order.id}&extraCharge=${chargeId}`);
+  async function handleConfirm() {
+    if (isConfirming) return;
+    setIsConfirming(true);
+    setConfirmError(null);
+    try {
+      // O servidor calcula a taxa, decide se o upgrade de seguro é necessário e quanto custa.
+      const chargeId = await addStore(order.id, {
+        storeIds: newStoreIds,
+        draftOrdersByStore,
+        insuranceUpgrade: needsInsuranceUpgrade && insuranceOptedIn,
+      });
+      router.push(`/pagamento?order=${order.id}&extraCharge=${chargeId}`);
+    } catch (err) {
+      setConfirmError(
+        err instanceof OrderError
+          ? err.message
+          : "Não foi possível adicionar a loja. Tente novamente.",
+      );
+      setIsConfirming(false);
+    }
   }
 
   if (showSummary) {
@@ -154,8 +167,18 @@ export function AddStoreFlow({
             <span className="text-brand-700 font-bold">{formatBRL(amountDueBRL)}</span>
           </div>
 
-          <Button size="lg" className="mt-2 w-full" onClick={handleConfirm}>
-            Ir para pagamento
+          {confirmError && (
+            <p role="alert" className="text-sm text-red-600">
+              {confirmError}
+            </p>
+          )}
+          <Button
+            size="lg"
+            className="mt-2 w-full"
+            onClick={() => void handleConfirm()}
+            disabled={isConfirming}
+          >
+            {isConfirming ? "Adicionando..." : "Ir para pagamento"}
           </Button>
         </Card>
       </div>

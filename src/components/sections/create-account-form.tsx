@@ -259,7 +259,7 @@ export function CreateAccountForm({ next }: { next?: string }) {
         style={contentHeight !== undefined ? { height: contentHeight } : undefined}
         onTransitionEnd={() => setContentHeight(undefined)}
       >
-        <form ref={formRef} onSubmit={(event) => event.preventDefault()}>
+        <form ref={formRef} method="post" onSubmit={(event) => event.preventDefault()}>
           <section className={cn("space-y-4", (showSummary || step !== 0) && "hidden")}>
             <AvatarUploader
               value={avatarUrl}

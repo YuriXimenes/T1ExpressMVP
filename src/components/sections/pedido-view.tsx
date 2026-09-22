@@ -16,13 +16,12 @@ import {
 } from "@/components/sections/store-order-builder";
 import { useAuth } from "@/lib/auth";
 import { usePendingOrder, clearPendingOrder } from "@/lib/pending-order";
-import { createMockOrder } from "@/lib/mock-orders";
-import { computeInsuranceInfo, BASE_INSURANCE_COVERAGE_BRL } from "@/lib/insurance";
+import { useOrders, OrderError } from "@/lib/orders/store";
+import { computeInsuranceInfo } from "@/lib/insurance";
 import { applyCoupon, type CouponResult } from "@/lib/data/coupons";
 import { useCatalog } from "@/lib/catalog/provider";
 import { cn } from "@/lib/utils";
 import type { PedidoGroup } from "@/lib/types/order";
-import type { MockOrder } from "@/lib/types/mock-order";
 
 function formatBRL(value: number) {
   return `R$ ${value.toFixed(2).replace(".", ",")}`;
@@ -32,6 +31,7 @@ export function PedidoView() {
   const router = useRouter();
   const { isLoggedIn, isReady, user } = useAuth();
   const order = usePendingOrder();
+  const { create } = useOrders();
   const { stores: freightStores, coletaPartners, coupons } = useCatalog();
 
   const origins = order
@@ -53,6 +53,8 @@ export function PedidoView() {
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<CouponResult | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
 
   const originsKey = origins.map((store) => store.id).join(",");
   if (originsKey && seededOrigins !== originsKey) {
@@ -91,10 +93,16 @@ export function PedidoView() {
     );
   }
 
-  const itemsTotal = origins.reduce((sum, store) => {
-    const groups = ordersByStore[store.id] ?? [];
-    return sum + groups.reduce((groupSum, group) => groupSum + orderGroupTotal(group), 0);
-  }, 0);
+  // Em centavos: evita que erro de ponto flutuante (ex.: 100,00000000000001) mude o tier do seguro.
+  const itemsTotal =
+    Math.round(
+      origins.reduce((sum, store) => {
+        const groups = ordersByStore[store.id] ?? [];
+        return (
+          sum + groups.reduce((groupSum, group) => groupSum + orderGroupTotal(group), 0)
+        );
+      }, 0) * 100,
+    ) / 100;
   const insuranceInfo = computeInsuranceInfo(itemsTotal);
   const insuranceExtraCostBRL = insuranceOptedIn ? insuranceInfo.extraCostBRL : 0;
   const freightAfterDiscountBRL = Math.max(
@@ -121,42 +129,31 @@ export function PedidoView() {
     setCouponError(null);
   }
 
-  function handleConfirm() {
-    const id = crypto.randomUUID();
-    const nowIso = new Date().toISOString();
-    const newOrder: MockOrder = {
-      id,
-      createdAt: nowIso,
-      status: "pending-payment",
-      originStoreIds: order!.originStoreIds,
-      destinationStoreId: order!.destinationStoreId,
-      ordersByStore,
-      deliveryNote,
-      quote: order!.quote,
-      itemsTotal,
-      insurance: {
-        extraCoverageOptedIn: insuranceOptedIn,
-        coverageAmountBRL: insuranceOptedIn
-          ? insuranceInfo.coverageNeededBRL
-          : BASE_INSURANCE_COVERAGE_BRL,
-        extraCostBRL: insuranceExtraCostBRL,
-      },
-      coupon: appliedCoupon
-        ? {
-            code: appliedCoupon.coupon.code,
-            type: appliedCoupon.coupon.type,
-            value: appliedCoupon.coupon.value,
-            discountBRL: appliedCoupon.discountBRL,
-          }
-        : undefined,
-      freightAfterDiscountBRL,
-      amountDueBRL,
-      storeCharges: [],
-      supportTickets: [],
-    };
-    createMockOrder(newOrder);
-    clearPendingOrder();
-    router.push(`/pagamento?order=${id}`);
+  async function handleConfirm() {
+    if (isConfirming) return;
+    setIsConfirming(true);
+    setConfirmError(null);
+    try {
+      // O servidor recalcula frete, itens, seguro, cupom e total: aqui vai só a escolha do usuário.
+      const id = await create({
+        originStoreIds: order!.originStoreIds,
+        destinationStoreId: order!.destinationStoreId,
+        ordersByStore,
+        deliveryNote,
+        quote: order!.quote,
+        insuranceOptedIn,
+        couponCode: appliedCoupon?.coupon.code,
+      });
+      clearPendingOrder();
+      router.push(`/pagamento?order=${id}`);
+    } catch (err) {
+      setConfirmError(
+        err instanceof OrderError
+          ? err.message
+          : "Não foi possível realizar o pedido. Tente novamente.",
+      );
+      setIsConfirming(false);
+    }
   }
 
   if (showSummary) {
@@ -182,6 +179,8 @@ export function PedidoView() {
         amountDueBRL={amountDueBRL}
         onBack={() => setShowSummary(false)}
         onConfirm={handleConfirm}
+        isConfirming={isConfirming}
+        confirmError={confirmError}
       />
     );
   }

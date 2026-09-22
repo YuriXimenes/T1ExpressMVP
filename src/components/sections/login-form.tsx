@@ -21,6 +21,7 @@ export function LoginForm({ next }: { next?: string }) {
     <div>
       <form
         id="login-form"
+        method="post"
         className="flex flex-col gap-4"
         onSubmit={async (event) => {
           event.preventDefault();
