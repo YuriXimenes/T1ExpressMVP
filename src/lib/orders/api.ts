@@ -1,6 +1,7 @@
 "use client";
 
 import { createBrowserClient } from "@/lib/supabase/client";
+import type { Database } from "@/lib/supabase/database.types";
 import type { CompetitorQuote, FreightQuoteResult } from "@/lib/types/freight";
 import type {
   DeliveryStage,
@@ -321,8 +322,25 @@ function toGroupsPayload(
   );
 }
 
-async function rpc<T>(name: string, args: Record<string, unknown>): Promise<T> {
-  const { data, error } = await createBrowserClient().rpc(name, args);
+/** As 7 funções de escrita de pedido chamadas pelo app (as outras — advance_delivery_stage
+ * e as _internas — são de uso exclusivo do banco/admin). */
+type OrderRpcName = Extract<
+  keyof Database["public"]["Functions"],
+  | "create_order"
+  | "pay_order"
+  | "complete_order"
+  | "add_groups_to_order"
+  | "add_store_charge"
+  | "pay_store_charge"
+  | "create_support_ticket"
+>;
+
+async function rpc<T>(name: OrderRpcName, args: Record<string, unknown>): Promise<T> {
+  // O formato de `args` varia por função e já é garantido pelos tipos de
+  // entrada de cada chamada (CreateOrderInput, AddStoreChargeInput, etc.) e
+  // validado de novo no banco; o cast só contorna o tipo específico que o
+  // client gerado espera para cada nome de função.
+  const { data, error } = await createBrowserClient().rpc(name, args as never);
   if (error) throw friendlyOrderError(error);
   return data as T;
 }

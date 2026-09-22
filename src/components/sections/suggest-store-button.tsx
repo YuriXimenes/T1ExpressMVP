@@ -13,10 +13,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { LeadError, submitStoreSuggestion } from "@/lib/leads";
 
 export function SuggestStoreButton() {
   const [open, setOpen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [website, setWebsite] = useState(""); // honeypot: só um robô preenche
 
   return (
     <Dialog
@@ -25,7 +29,11 @@ export function SuggestStoreButton() {
         setOpen(nextOpen);
         if (!nextOpen) {
           // Reseta o formulário depois que o fechamento termina de animar.
-          setTimeout(() => setSubmitted(false), 200);
+          setTimeout(() => {
+            setSubmitted(false);
+            setSubmitError(null);
+            setWebsite("");
+          }, 200);
         }
       }}
     >
@@ -75,10 +83,33 @@ export function SuggestStoreButton() {
             </DialogHeader>
 
             <form
+              method="post"
               className="flex flex-col gap-4"
-              onSubmit={(event) => {
+              onSubmit={async (event) => {
                 event.preventDefault();
-                setSubmitted(true);
+                if (isSubmitting) return;
+                const form = event.currentTarget;
+                const value = (name: string) =>
+                  (form.elements.namedItem(name) as HTMLInputElement).value;
+                setIsSubmitting(true);
+                setSubmitError(null);
+                try {
+                  await submitStoreSuggestion({
+                    storeName: value("store-name").trim(),
+                    storeAddress: value("store-address").trim(),
+                    comment: value("comment").trim() || undefined,
+                    website,
+                  });
+                  setSubmitted(true);
+                } catch (err) {
+                  setSubmitError(
+                    err instanceof LeadError
+                      ? err.message
+                      : "Não foi possível enviar. Tente novamente.",
+                  );
+                } finally {
+                  setIsSubmitting(false);
+                }
               }}
             >
               <div className="space-y-1.5">
@@ -103,8 +134,30 @@ export function SuggestStoreButton() {
                 <Textarea id="suggest-store-comment" name="comment" rows={3} />
               </div>
 
-              <Button type="submit" size="lg" className="mt-2 w-full">
-                Enviar sugestão
+              {/* Campo armadilha contra robôs: invisível e fora da navegação por teclado. */}
+              <div className="absolute -left-[9999px]" aria-hidden="true">
+                <Input
+                  name="website"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  value={website}
+                  onChange={(event) => setWebsite(event.target.value)}
+                />
+              </div>
+
+              {submitError && (
+                <p role="alert" className="text-sm text-red-600">
+                  {submitError}
+                </p>
+              )}
+
+              <Button
+                type="submit"
+                size="lg"
+                className="mt-2 w-full"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Enviando..." : "Enviar sugestão"}
               </Button>
             </form>
           </>

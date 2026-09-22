@@ -27,6 +27,7 @@ import { GamesPicker } from "@/components/shared/games-picker";
 import { InfoTooltip } from "@/components/shared/info-tooltip";
 import { useCatalog } from "@/lib/catalog/provider";
 import { formatPhone } from "@/lib/format-phone";
+import { LeadError, submitPartnerLead } from "@/lib/leads";
 import type { GameTag } from "@/lib/types/signup";
 
 interface FormState {
@@ -70,6 +71,9 @@ export function PartnerInterestDialog({ trigger }: { trigger: ReactNode }) {
   const [customGames, setCustomGames] = useState<string[]>([]);
   const [interestPickup, setInterestPickup] = useState(false);
   const [interestDropoff, setInterestDropoff] = useState(false);
+  const [company, setCompany] = useState(""); // honeypot: só um robô preenche
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   function updateField(key: keyof FormState, value: string) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -93,10 +97,39 @@ export function PartnerInterestDialog({ trigger }: { trigger: ReactNode }) {
     games.length > 0,
   );
 
-  function handleSubmit() {
-    if (!isValid) return;
-    // TODO: substituir por envio real (com backend) quando essa integração existir.
-    setSubmitted(true);
+  async function handleSubmit() {
+    if (!isValid || isSubmitting) return;
+    setIsSubmitting(true);
+    setSubmitError(null);
+    try {
+      await submitPartnerLead({
+        storeName: form.storeName.trim(),
+        wantsPickup: interestPickup,
+        wantsDropoff: interestDropoff,
+        street: form.street.trim(),
+        number: form.number.trim(),
+        complement: form.complement.trim() || undefined,
+        city: form.city.trim(),
+        state: form.state,
+        contactName: form.contactName.trim(),
+        contactPhone: form.contactPhone.trim(),
+        contactEmail: trimmedEmail,
+        website: form.website.trim() || undefined,
+        games,
+        otherGames: games.includes("outro") ? customGames : undefined,
+        message: form.message.trim() || undefined,
+        company,
+      });
+      setSubmitted(true);
+    } catch (err) {
+      setSubmitError(
+        err instanceof LeadError
+          ? err.message
+          : "Não foi possível enviar. Tente novamente.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   function handleOpenChange(next: boolean) {
@@ -109,6 +142,8 @@ export function PartnerInterestDialog({ trigger }: { trigger: ReactNode }) {
         setCustomGames([]);
         setInterestPickup(false);
         setInterestDropoff(false);
+        setCompany("");
+        setSubmitError(null);
       }, 200);
     }
   }
@@ -349,11 +384,31 @@ export function PartnerInterestDialog({ trigger }: { trigger: ReactNode }) {
                   onChange={(event) => updateField("message", event.target.value)}
                 />
               </div>
+
+              {/* Campo armadilha contra robôs: invisível e fora da navegação por teclado. */}
+              <div className="absolute -left-[9999px]" aria-hidden="true">
+                <Input
+                  tabIndex={-1}
+                  autoComplete="off"
+                  value={company}
+                  onChange={(event) => setCompany(event.target.value)}
+                />
+              </div>
             </div>
 
+            {submitError && (
+              <p role="alert" className="text-sm text-red-600">
+                {submitError}
+              </p>
+            )}
+
             <DialogFooter>
-              <Button type="button" onClick={handleSubmit} disabled={!isValid}>
-                Enviar interesse
+              <Button
+                type="button"
+                onClick={() => void handleSubmit()}
+                disabled={!isValid || isSubmitting}
+              >
+                {isSubmitting ? "Enviando..." : "Enviar interesse"}
               </Button>
             </DialogFooter>
           </>

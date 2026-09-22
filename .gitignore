@@ -40,5 +40,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 
+# supabase CLI local cache (usado por `npm run db:types`)
+supabase/.temp/
+
 # claude code (local-only permissions, not shared)
 .claude/settings.local.json
