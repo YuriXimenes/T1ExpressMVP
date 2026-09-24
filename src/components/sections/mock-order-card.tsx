@@ -87,7 +87,15 @@ export function MockOrderCard({
           {destination && <LogoCircle store={destination} />}
         </div>
         <div className="flex flex-col items-end gap-1">
-          <Badge variant={order.status === "active" ? "default" : "secondary"}>
+          <Badge
+            variant={
+              order.status === "active"
+                ? "default"
+                : order.status === "cancelled"
+                  ? "destructive"
+                  : "secondary"
+            }
+          >
             {statusLabel}
           </Badge>
           {pickupDateLabel && (

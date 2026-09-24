@@ -47,7 +47,10 @@ export function ContaView() {
   if (!isLoggedIn) return null;
 
   const activeOrders = orders.filter((order) => order.status === "active");
-  const historyOrders = orders.filter((order) => order.status === "completed");
+  // Cancelado também vira histórico — senão o pedido some das duas abas.
+  const historyOrders = orders.filter(
+    (order) => order.status === "completed" || order.status === "cancelled",
+  );
 
   async function handleMarkCompleted(orderId: string) {
     setActionError(null);

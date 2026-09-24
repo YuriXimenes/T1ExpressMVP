@@ -26,6 +26,20 @@ export function OrderStatusTracker({
     ? new Date(order.estimatedPickupDate).toLocaleDateString("pt-BR")
     : null;
 
+  if (order.status === "cancelled") {
+    return (
+      <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+        <p className="mb-1 text-xs font-medium tracking-wide text-red-700 uppercase">
+          Status do pedido
+        </p>
+        <p className="text-sm font-medium text-red-800">Pedido cancelado</p>
+        {order.cancelReason && (
+          <p className="mt-1 text-sm text-red-700">{order.cancelReason}</p>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4">
       <p className="mb-3 text-xs font-medium tracking-wide text-slate-500 uppercase">

@@ -47,8 +47,8 @@ const GROUP_SELECT = `
 `;
 
 const ORDER_SELECT = `
-  id, created_at, status, paid_at, completed_at, delivery_stage, estimated_pickup_date,
-  delivery_note, items_total_brl, insurance_opted_in, insurance_coverage_brl,
+  id, created_at, status, paid_at, completed_at, cancel_reason, delivery_stage,
+  estimated_pickup_date, delivery_note, items_total_brl, insurance_opted_in, insurance_coverage_brl,
   insurance_extra_cost_brl, coupon_code, coupon_type, coupon_value, coupon_discount_brl,
   freight_after_discount_brl, amount_due_brl, payment_method, quote_price_brl,
   quote_estimated_days_min, quote_estimated_days_max, quote_distance_label,
@@ -63,7 +63,7 @@ const ORDER_SELECT = `
     stores:store_charge_stores(store:stores(code)),
     groups:pedido_groups(${GROUP_SELECT})
   ),
-  tickets:support_tickets(id, subject, message, created_at)
+  tickets:support_tickets(id, subject, message, created_at, resolved)
 `;
 
 interface CardItemRow {
@@ -104,6 +104,7 @@ interface OrderRow {
   status: MockOrderStatus;
   paid_at: string | null;
   completed_at: string | null;
+  cancel_reason: string | null;
   delivery_stage: DeliveryStage | null;
   estimated_pickup_date: string | null;
   delivery_note: string;
@@ -145,7 +146,13 @@ interface OrderRow {
     stores: { store: { code: string } | null }[];
     groups: GroupRow[];
   }[];
-  tickets: { id: string; subject: string; message: string; created_at: string }[];
+  tickets: {
+    id: string;
+    subject: string;
+    message: string;
+    created_at: string;
+    resolved: boolean;
+  }[];
 }
 
 const CARRIER_ORDER: CompetitorQuote["carrier"][] = ["uber", "loggi", "correios"];
@@ -221,6 +228,7 @@ function mapOrder(row: OrderRow): MockOrder {
       subject: ticket.subject,
       message: ticket.message,
       createdAt: ticket.created_at,
+      resolved: ticket.resolved,
     }));
 
   const quote: FreightQuoteResult = {
@@ -248,6 +256,7 @@ function mapOrder(row: OrderRow): MockOrder {
     status: row.status,
     paidAt: row.paid_at ?? undefined,
     completedAt: row.completed_at ?? undefined,
+    cancelReason: row.cancel_reason ?? undefined,
     deliveryStage: row.delivery_stage ?? undefined,
     estimatedPickupDate: row.estimated_pickup_date ?? undefined,
     originStoreIds: row.origins

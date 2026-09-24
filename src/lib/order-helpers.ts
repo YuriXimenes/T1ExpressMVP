@@ -10,6 +10,7 @@ export const DELIVERY_STAGES: { id: DeliveryStage; label: string }[] = [
 export function getOrderStatusLabel(order: MockOrder): string {
   if (order.status === "pending-payment") return "Aguardando pagamento";
   if (order.status === "completed") return "Concluído";
+  if (order.status === "cancelled") return "Cancelado";
   return (
     DELIVERY_STAGES.find((stage) => stage.id === order.deliveryStage)?.label ?? "Ativo"
   );
