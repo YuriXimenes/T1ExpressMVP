@@ -12,7 +12,7 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "db:types": "supabase gen types typescript --project-id nrkulfxzkarndsnvsrdf --schema public > src/lib/supabase/database.types.ts"
+    "db:types": "npx --yes supabase gen types typescript --project-id nrkulfxzkarndsnvsrdf --schema public > src/lib/supabase/database.types.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",

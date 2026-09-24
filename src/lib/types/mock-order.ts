@@ -1,7 +1,7 @@
 import type { PedidoGroup } from "@/lib/types/order";
 import type { FreightQuoteResult } from "@/lib/types/freight";
 
-export type MockOrderStatus = "pending-payment" | "active" | "completed";
+export type MockOrderStatus = "pending-payment" | "active" | "completed" | "cancelled";
 
 /** Etapa de entrega dentro do status "active" — avançada manualmente no mock, sem integração real com transportadora. */
 export type DeliveryStage =
@@ -39,6 +39,8 @@ export interface SupportTicket {
   subject: string;
   message: string;
   createdAt: string;
+  /** Controle interno do admin — o cliente não vê nem é avisado (sem e-mail configurado ainda). */
+  resolved: boolean;
 }
 
 export interface MockOrder {
@@ -47,6 +49,8 @@ export interface MockOrder {
   status: MockOrderStatus;
   paidAt?: string;
   completedAt?: string;
+  /** Preenchido só quando status === "cancelled"; motivo informado pelo admin (opcional). */
+  cancelReason?: string;
   deliveryStage?: DeliveryStage;
   /** Previsão de disponibilidade para retirada, calculada a partir do prazo do frete no momento do pagamento. */
   estimatedPickupDate?: string;
