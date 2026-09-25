@@ -49,6 +49,26 @@ export async function checkIsAdmin(userId: string): Promise<boolean> {
   return !!data;
 }
 
+/** Faz o site público reler o catálogo agora, sem esperar o cache de 5 min. */
+export async function revalidateCatalog(): Promise<void> {
+  const { data } = await createBrowserClient().auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) throw new AdminError("Sessão expirada. Entre novamente.");
+  let response: Response;
+  try {
+    response = await fetch("/api/admin/revalidate-catalog", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch {
+    throw new AdminError("Não foi possível atualizar o catálogo. Tente novamente.");
+  }
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new AdminError(body?.error ?? "Não foi possível atualizar o catálogo.");
+  }
+}
+
 // --- Pedidos -----------------------------------------------------------
 
 export interface AdminOrderSummary {
