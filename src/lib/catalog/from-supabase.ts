@@ -7,6 +7,8 @@ import type { PickupPartner } from "@/lib/types/pickup-partner";
 import type { Catalog } from "./types";
 
 const REVALIDATE_SECONDS = 300;
+/** Tag usada por POST /api/admin/revalidate-catalog para forçar a atualização. */
+export const CATALOG_CACHE_TAG = "catalog";
 const REQUEST_TIMEOUT_MS = 5000;
 
 interface StoreRow {
@@ -79,7 +81,7 @@ function createCatalogClient() {
         fetch(input, {
           ...init,
           signal: init?.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-          next: { revalidate: REVALIDATE_SECONDS },
+          next: { revalidate: REVALIDATE_SECONDS, tags: [CATALOG_CACHE_TAG] },
         }),
     },
   });
