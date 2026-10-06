@@ -1,6 +1,7 @@
 "use client";
 
 import { createBrowserClient } from "@/lib/supabase/client";
+import { STORE_LOGO_BUCKET } from "@/lib/store-logo";
 import type { CompetitorQuote, FreightQuoteResult } from "@/lib/types/freight";
 import type {
   DeliveryStage,
@@ -570,6 +571,28 @@ export async function upsertStore(
   input: StoreInput,
 ): Promise<string> {
   return rpc<string>("admin_upsert_store", { p_store_id: storeId, p: input });
+}
+
+const LOGO_TYPES: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+};
+export const STORE_LOGO_ACCEPT = Object.keys(LOGO_TYPES).join(",");
+const MAX_LOGO_BYTES = 2 * 1024 * 1024;
+
+/** Envia o logo para o Storage e devolve a URL pública (salva em `logoPath`). */
+export async function uploadStoreLogo(file: File): Promise<string> {
+  const ext = LOGO_TYPES[file.type];
+  if (!ext) throw new AdminError("Use uma imagem PNG, JPG ou WEBP.");
+  if (file.size > MAX_LOGO_BYTES) throw new AdminError("A imagem passa de 2 MB.");
+  const supabase = createBrowserClient();
+  const path = `${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage
+    .from(STORE_LOGO_BUCKET)
+    .upload(path, file, { contentType: file.type, cacheControl: "31536000" });
+  if (error) throw new AdminError("Não foi possível enviar o logo. Tente novamente.");
+  return supabase.storage.from(STORE_LOGO_BUCKET).getPublicUrl(path).data.publicUrl;
 }
 
 export async function deleteStore(storeId: string): Promise<void> {

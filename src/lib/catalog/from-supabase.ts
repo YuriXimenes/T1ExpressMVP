@@ -4,6 +4,7 @@ import type { ComparisonRow, ComparisonStatus } from "@/lib/types/market-compari
 import type { FreightRouteQuote } from "@/lib/types/freight-route";
 import type { FreightStore } from "@/lib/types/freight-store";
 import type { PickupPartner } from "@/lib/types/pickup-partner";
+import { FALLBACK_STORE_LOGO, isValidStoreLogo } from "@/lib/store-logo";
 import type { Catalog } from "./types";
 
 const REVALIDATE_SECONDS = 300;
@@ -133,31 +134,35 @@ export async function loadCatalogFromSupabase(): Promise<Catalog> {
 
   const codeById = new Map(storeRows.map((s) => [s.id, s.code]));
 
+  // Uma loja com dado incompleto (sem coordenadas, logo inválido) não pode
+  // derrubar o catálogo inteiro: ela entra com o que tiver e o resto do site
+  // continua lendo do banco.
+  const logoOf = (s: StoreRow) =>
+    isValidStoreLogo(s.logo_path) ? s.logo_path : FALLBACK_STORE_LOGO;
+  const logoOnDark = (s: StoreRow) => s.logo_on_dark && isValidStoreLogo(s.logo_path);
+
   const freightStores: FreightStore[] = storeRows.map((s) => ({
     id: s.code,
     name: s.name,
     address: s.address,
-    logo: s.logo_path ?? "",
-    ...(s.logo_on_dark ? { logoOnDark: true } : {}),
+    logo: logoOf(s),
+    ...(logoOnDark(s) ? { logoOnDark: true } : {}),
     isPickupPoint: s.is_pickup_point,
   }));
 
-  const toPartner = (s: StoreRow): PickupPartner => {
-    if (s.lat === null || s.lng === null) {
-      throw new Error(`stores: ${s.code} sem coordenadas.`);
-    }
-    return {
-      id: s.code,
-      name: s.name,
-      neighborhood: s.neighborhood ?? "",
-      city: s.city,
-      state: s.state,
-      address: s.address,
-      logo: s.logo_path ?? "",
-      ...(s.logo_on_dark ? { onDark: true } : {}),
-      coordinates: { lat: Number(s.lat), lng: Number(s.lng) },
-    };
-  };
+  const toPartner = (s: StoreRow): PickupPartner => ({
+    id: s.code,
+    name: s.name,
+    neighborhood: s.neighborhood ?? "",
+    city: s.city,
+    state: s.state,
+    address: s.address,
+    logo: logoOf(s),
+    ...(logoOnDark(s) ? { onDark: true } : {}),
+    ...(s.lat !== null && s.lng !== null
+      ? { coordinates: { lat: Number(s.lat), lng: Number(s.lng) } }
+      : {}),
+  });
 
   const coletaPartners = storeRows.map(toPartner);
   const pickupPartners = storeRows
@@ -171,11 +176,13 @@ export async function loadCatalogFromSupabase(): Promise<Catalog> {
 
   const storeLogos = [...storeRows]
     .sort((a, b) => byPtBr(a.name, b.name))
-    .map((s) => ({
-      name: s.name,
-      src: s.logo_path ?? "",
-      ...(s.logo_on_dark ? { onDark: true } : {}),
-    }));
+    .map((s) =>
+      isValidStoreLogo(s.logo_path)
+        ? { name: s.name, src: s.logo_path, ...(s.logo_on_dark ? { onDark: true } : {}) }
+        : // Sem logo próprio, a faixa de logos mostra o nome da loja em texto.
+          // (`textOnly` usa texto branco, então precisa do fundo escuro do `onDark`.)
+          { name: s.name, src: FALLBACK_STORE_LOGO, textOnly: true, onDark: true },
+    );
 
   const freightRoutes: FreightRouteQuote[] = routeRows.map((r) => {
     const originStoreId = codeById.get(r.origin_store_id);
