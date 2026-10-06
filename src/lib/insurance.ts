@@ -1,5 +1,4 @@
 export const BASE_INSURANCE_COVERAGE_BRL = 100;
-const EXTRA_COST_PER_100_BRL = 1;
 
 export interface InsuranceInfo {
   needsExtraCoverage: boolean;
@@ -8,7 +7,14 @@ export interface InsuranceInfo {
   extraCostBRL: number;
 }
 
-export function computeInsuranceInfo(itemsTotal: number): InsuranceInfo {
+/**
+ * `perHundredBRL`: custo a cada R$100 de cobertura acima da básica
+ * (`catalog.pricing.insurancePer100BRL`, configurado no admin).
+ */
+export function computeInsuranceInfo(
+  itemsTotal: number,
+  perHundredBRL: number,
+): InsuranceInfo {
   if (itemsTotal <= BASE_INSURANCE_COVERAGE_BRL) {
     return {
       needsExtraCoverage: false,
@@ -19,6 +25,6 @@ export function computeInsuranceInfo(itemsTotal: number): InsuranceInfo {
 
   const coverageNeededBRL = Math.ceil(itemsTotal / 100) * 100;
   const extraCostBRL =
-    ((coverageNeededBRL - BASE_INSURANCE_COVERAGE_BRL) / 100) * EXTRA_COST_PER_100_BRL;
+    ((coverageNeededBRL - BASE_INSURANCE_COVERAGE_BRL) / 100) * perHundredBRL;
   return { needsExtraCoverage: true, coverageNeededBRL, extraCostBRL };
 }

@@ -5,15 +5,14 @@ import type {
 } from "@/lib/types/freight";
 import type { FreightRouteQuote } from "@/lib/types/freight-route";
 import type { FreightStore } from "@/lib/types/freight-store";
-
-/** Custo marginal de cada loja de coleta além da primeira — usado tanto na cotação quanto para adicionar lojas depois do pedido feito. */
-export const EXTRA_ORIGIN_STORE_FEE_BRL = 3;
+import { orderFreightBRL, type Pricing } from "@/lib/pricing";
 
 /** Dados de referência que alimentam a cotação (vêm do catálogo). */
 export interface FreightPricingData {
   stores: FreightStore[];
   routes: FreightRouteQuote[];
   correiosFlatRateBRL: number;
+  pricing: Pricing;
 }
 
 export function simulateFreight(
@@ -22,6 +21,7 @@ export function simulateFreight(
     stores: freightStores,
     routes: freightRoutes,
     correiosFlatRateBRL: CORREIOS_FLAT_RATE_BRL,
+    pricing,
   }: FreightPricingData,
 ): FreightQuoteResult {
   const origins = originStoreIds.map((id) => {
@@ -45,7 +45,7 @@ export function simulateFreight(
     return route;
   });
 
-  const priceBRL = 12 + Math.max(0, origins.length - 1) * EXTRA_ORIGIN_STORE_FEE_BRL;
+  const priceBRL = orderFreightBRL(origins.length, pricing);
 
   const loggiTotal = routes.reduce((sum, r) => sum + r.loggiBRL, 0);
   const correiosTotal = CORREIOS_FLAT_RATE_BRL * origins.length;

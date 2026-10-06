@@ -8,6 +8,7 @@ import { RotasTab } from "@/components/admin/rotas-tab";
 import { CorreiosTab } from "@/components/admin/correios-tab";
 import { ComparativoTab } from "@/components/admin/comparativo-tab";
 import { CuponsTab } from "@/components/admin/cupons-tab";
+import { PrecosTab } from "@/components/admin/precos-tab";
 import { AdminError, revalidateCatalog } from "@/lib/admin/api";
 
 export function CatalogoAdminView() {
@@ -64,6 +65,7 @@ export function CatalogoAdminView() {
           <TabsTrigger value="correios">Correios</TabsTrigger>
           <TabsTrigger value="comparativo">Comparativo</TabsTrigger>
           <TabsTrigger value="cupons">Cupons</TabsTrigger>
+          <TabsTrigger value="precos">Preços</TabsTrigger>
         </TabsList>
         <TabsContent value="lojas" className="pt-4">
           <LojasTab />
@@ -79,6 +81,9 @@ export function CatalogoAdminView() {
         </TabsContent>
         <TabsContent value="cupons" className="pt-4">
           <CuponsTab />
+        </TabsContent>
+        <TabsContent value="precos" className="pt-4">
+          <PrecosTab />
         </TabsContent>
       </Tabs>
     </div>

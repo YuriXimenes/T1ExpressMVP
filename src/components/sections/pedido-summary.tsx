@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { OrderItemsBreakdown } from "@/components/sections/order-items-breakdown";
 import { InsuranceTierCard } from "@/components/sections/insurance-tier-card";
 import { BASE_INSURANCE_COVERAGE_BRL } from "@/lib/insurance";
+import { Price } from "@/components/shared/price";
 import type { PickupPartner } from "@/lib/types/pickup-partner";
 import type { PedidoGroup } from "@/lib/types/order";
 import type { CouponResult } from "@/lib/data/coupons";
@@ -152,7 +153,7 @@ export function PedidoSummary({
 
         <div className="flex items-center justify-between text-sm">
           <span className="text-slate-600">Valor da entrega ({freightDaysLabel})</span>
-          <span className="font-medium text-slate-900">{formatBRL(freightPriceBRL)}</span>
+          <Price value={freightPriceBRL} className="font-medium text-slate-900" />
         </div>
         {appliedCoupon && (
           <div className="flex items-center justify-between text-sm">
@@ -172,7 +173,7 @@ export function PedidoSummary({
         )}
         <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-base">
           <span className="font-semibold text-slate-900">Total a pagar</span>
-          <span className="text-brand-700 font-bold">{formatBRL(amountDueBRL)}</span>
+          <Price value={amountDueBRL} className="text-brand-700 font-bold" />
         </div>
 
         {confirmError && (

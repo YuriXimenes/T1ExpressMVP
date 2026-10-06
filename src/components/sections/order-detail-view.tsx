@@ -28,7 +28,6 @@ import { InfoTooltip } from "@/components/shared/info-tooltip";
 import { useAuth } from "@/lib/auth";
 import { useOrders, OrderError } from "@/lib/orders/store";
 import { makePedidoGroup, computeTotalPaidBRL } from "@/lib/order-helpers";
-import { EXTRA_ORIGIN_STORE_FEE_BRL } from "@/lib/data/freight-simulation";
 import { useCatalog } from "@/lib/catalog/provider";
 import { cn } from "@/lib/utils";
 import type { PedidoGroup } from "@/lib/types/order";
@@ -56,7 +55,7 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
     addGroupsToStore,
     addTicket,
   } = useOrders();
-  const { stores: freightStores, coletaPartners } = useCatalog();
+  const { stores: freightStores, coletaPartners, pricing } = useCatalog();
   const order = orders.find((candidate) => candidate.id === orderId);
 
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -522,7 +521,11 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
             selectedIds={[]}
             onConfirm={handleAddStores}
             title="Adicionar loja de coleta"
-            description={`Cada loja nova adicionada ao pedido tem uma cobrança de ${formatBRL(EXTRA_ORIGIN_STORE_FEE_BRL)}.`}
+            description={
+              pricing.addedStoreBRL > 0
+                ? `Cada loja nova adicionada ao pedido tem uma cobrança de ${formatBRL(pricing.addedStoreBRL)}.`
+                : "Adicionar lojas novas ao pedido é gratuito."
+            }
           />
         </div>
       </div>

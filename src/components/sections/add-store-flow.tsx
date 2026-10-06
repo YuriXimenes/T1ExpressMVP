@@ -15,9 +15,9 @@ import {
 import { useOrders, OrderError } from "@/lib/orders/store";
 import { makePedidoGroup } from "@/lib/order-helpers";
 import { computeInsuranceInfo } from "@/lib/insurance";
-import { EXTRA_ORIGIN_STORE_FEE_BRL } from "@/lib/data/freight-simulation";
 import { useCatalog } from "@/lib/catalog/provider";
 import { cn } from "@/lib/utils";
+import { Price } from "@/components/shared/price";
 import type { PedidoGroup } from "@/lib/types/order";
 import type { MockOrder } from "@/lib/types/mock-order";
 
@@ -36,7 +36,7 @@ export function AddStoreFlow({
 }) {
   const router = useRouter();
   const { addStore } = useOrders();
-  const { coletaPartners } = useCatalog();
+  const { coletaPartners, pricing } = useCatalog();
   const newPartners = coletaPartners.filter((partner) =>
     newStoreIds.includes(partner.id),
   );
@@ -61,13 +61,17 @@ export function AddStoreFlow({
     ) / 100;
   const previousItemsTotal = order.itemsTotal;
   const newItemsTotal = previousItemsTotal + addedItemsTotal;
-  const newInsuranceInfo = computeInsuranceInfo(newItemsTotal);
+  const newInsuranceInfo = computeInsuranceInfo(
+    newItemsTotal,
+    pricing.insurancePer100BRL,
+  );
   const needsInsuranceUpgrade =
     newInsuranceInfo.coverageNeededBRL > order.insurance.coverageAmountBRL;
   const insuranceUpgradeCostBRL = insuranceOptedIn
     ? Math.max(0, newInsuranceInfo.extraCostBRL - order.insurance.extraCostBRL)
     : 0;
-  const storeFeeBRL = EXTRA_ORIGIN_STORE_FEE_BRL * newStoreIds.length;
+  // Prévia: quem cobra de verdade é o banco (add_store_charge), com o mesmo valor.
+  const storeFeeBRL = pricing.addedStoreBRL * newStoreIds.length;
   const amountDueBRL = storeFeeBRL + insuranceUpgradeCostBRL;
 
   async function handleConfirm() {
@@ -152,7 +156,7 @@ export function AddStoreFlow({
             <span className="text-slate-600">
               Taxa da{newStoreIds.length > 1 ? "s novas lojas" : " nova loja"}
             </span>
-            <span className="font-medium text-slate-900">{formatBRL(storeFeeBRL)}</span>
+            <Price value={storeFeeBRL} className="font-medium text-slate-900" />
           </div>
           {insuranceOptedIn && insuranceUpgradeCostBRL > 0 && (
             <div className="flex items-center justify-between text-sm">
@@ -164,7 +168,7 @@ export function AddStoreFlow({
           )}
           <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-base">
             <span className="font-semibold text-slate-900">Total a pagar agora</span>
-            <span className="text-brand-700 font-bold">{formatBRL(amountDueBRL)}</span>
+            <Price value={amountDueBRL} className="text-brand-700 font-bold" />
           </div>
 
           {confirmError && (

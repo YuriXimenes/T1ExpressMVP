@@ -10,7 +10,7 @@ import { PaymentMethodPanel } from "@/components/shared/payment-method-panel";
 import { useAuth } from "@/lib/auth";
 import { useOrders, OrderError } from "@/lib/orders/store";
 import { useCatalog } from "@/lib/catalog/provider";
-import { EXTRA_ORIGIN_STORE_FEE_BRL } from "@/lib/data/freight-simulation";
+import { Price } from "@/components/shared/price";
 import type { PaymentMethod } from "@/lib/types/mock-order";
 
 function formatBRL(value: number) {
@@ -59,7 +59,7 @@ export function PagamentoView({
   const { isLoggedIn, isReady } = useAuth();
   const { orders, isLoading, status, error, refresh, markActive, resolveCharge } =
     useOrders();
-  const { stores: freightStores } = useCatalog();
+  const { stores: freightStores, pricing } = useCatalog();
   const order = orderId
     ? orders.find((candidate) => candidate.id === orderId)
     : undefined;
@@ -179,18 +179,19 @@ export function PagamentoView({
                 {formatBRL(charge.insuranceUpgrade.coverageAmountBRL)})
               </span>
               <span className="font-medium text-slate-900">
-                +
-                {formatBRL(
-                  charge.amountBRL - EXTRA_ORIGIN_STORE_FEE_BRL * charge.storeIds.length,
-                )}
+                <Price
+                  prefix="+"
+                  value={Math.max(
+                    0,
+                    charge.amountBRL - pricing.addedStoreBRL * charge.storeIds.length,
+                  )}
+                />
               </span>
             </div>
           )}
           <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-base">
             <span className="font-semibold text-slate-900">Total a pagar</span>
-            <span className="text-brand-700 font-bold">
-              {formatBRL(charge.amountBRL)}
-            </span>
+            <Price value={charge.amountBRL} className="text-brand-700 font-bold" />
           </div>
         </Card>
 
@@ -252,7 +253,7 @@ export function PagamentoView({
           <div className="flex items-center justify-between text-sm">
             <span className="text-slate-600">Seguro adicional</span>
             <span className="font-medium text-slate-900">
-              +{formatBRL(order.insurance.extraCostBRL)}
+              <Price prefix="+" value={order.insurance.extraCostBRL} />
             </span>
           </div>
         )}
@@ -266,9 +267,7 @@ export function PagamentoView({
         )}
         <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-base">
           <span className="font-semibold text-slate-900">Total a pagar</span>
-          <span className="text-brand-700 font-bold">
-            {formatBRL(order.amountDueBRL)}
-          </span>
+          <Price value={order.amountDueBRL} className="text-brand-700 font-bold" />
         </div>
       </Card>
 

@@ -4,6 +4,7 @@ import type { ComparisonRow, ComparisonStatus } from "@/lib/types/market-compari
 import type { FreightRouteQuote } from "@/lib/types/freight-route";
 import type { FreightStore } from "@/lib/types/freight-store";
 import type { PickupPartner } from "@/lib/types/pickup-partner";
+import { DEFAULT_PRICING, type Pricing } from "@/lib/pricing";
 import { FALLBACK_STORE_LOGO, isValidStoreLogo } from "@/lib/store-logo";
 import type { Catalog } from "./types";
 
@@ -68,6 +69,38 @@ interface StateRow {
   name: string;
 }
 
+/**
+ * Preço é opcional para o catálogo: se a tabela faltar ou falhar, usa os
+ * valores de antes (e avisa no log) em vez de derrubar o catálogo inteiro.
+ */
+function toPricing(result: {
+  data: Record<string, number | string> | null;
+  error: { message: string } | null;
+}): Pricing {
+  const row = result.data;
+  const nums = row
+    ? [
+        row.base_brl,
+        row.extra_store_brl,
+        row.added_store_brl,
+        row.insurance_per_100_brl,
+      ].map(Number)
+    : [];
+  if (
+    result.error ||
+    nums.length !== 4 ||
+    nums.some((n) => !Number.isFinite(n) || n < 0)
+  ) {
+    console.warn(
+      "[catalog] pricing_settings indisponível, usando preços padrão:",
+      result.error?.message ?? "sem dados válidos",
+    );
+    return DEFAULT_PRICING;
+  }
+  const [baseBRL, extraStoreBRL, addedStoreBRL, insurancePer100BRL] = nums;
+  return { baseBRL, extraStoreBRL, addedStoreBRL, insurancePer100BRL };
+}
+
 const byPtBr = (a: string, b: string) => a.localeCompare(b, "pt-BR");
 
 function createCatalogClient() {
@@ -101,7 +134,7 @@ function must<T>(
 export async function loadCatalogFromSupabase(): Promise<Catalog> {
   const supabase = createCatalogClient();
 
-  const [stores, routes, flatRates, carriers, rows, values, coupons, states] =
+  const [stores, routes, flatRates, carriers, rows, values, coupons, states, pricingRes] =
     await Promise.all([
       supabase
         .from("stores")
@@ -118,6 +151,11 @@ export async function loadCatalogFromSupabase(): Promise<Catalog> {
       supabase.from("comparison_values").select("*"),
       supabase.from("coupons").select("code, type, value, label").eq("active", true),
       supabase.from("brazil_states").select("uf, name"),
+      supabase
+        .from("pricing_settings")
+        .select("base_brl, extra_store_brl, added_store_brl, insurance_per_100_brl")
+        .eq("id", 1)
+        .maybeSingle(),
     ]);
 
   const storeRows = must<StoreRow>(stores, "stores");
@@ -236,5 +274,6 @@ export async function loadCatalogFromSupabase(): Promise<Catalog> {
       label: c.label,
     })),
     brazilStates: [...stateRows].sort((a, b) => byPtBr(a.name, b.name)),
+    pricing: toPricing(pricingRes),
   };
 }
