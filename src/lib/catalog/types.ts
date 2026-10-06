@@ -3,6 +3,7 @@ import type { Coupon } from "@/lib/data/coupons";
 import type { FreightRouteQuote } from "@/lib/types/freight-route";
 import type { FreightStore } from "@/lib/types/freight-store";
 import type { ComparisonCarrier, ComparisonRow } from "@/lib/types/market-comparison";
+import type { Pricing } from "@/lib/pricing";
 import type { PickupPartner } from "@/lib/types/pickup-partner";
 import type { StoreLogo } from "@/lib/types/store-logo";
 
@@ -25,4 +26,6 @@ export interface Catalog {
   };
   coupons: Coupon[];
   brazilStates: BrazilState[];
+  /** Preços da T1 configurados no admin (aba Preços). */
+  pricing: Pricing;
 }

@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { FreightStoreCard } from "@/components/shared/freight-store-card";
 import { FreightStorePickerDialog } from "@/components/shared/freight-store-picker-dialog";
 import { getFreightQuote } from "@/lib/services/freight.service";
+import { Price } from "@/components/shared/price";
 import { useAuth } from "@/lib/auth";
 import { useCatalog } from "@/lib/catalog/provider";
 import { savePendingOrder } from "@/lib/pending-order";
@@ -73,6 +74,7 @@ export function FreightSimulatorCard({
           stores: catalog.stores,
           routes: catalog.freightRoutes,
           correiosFlatRateBRL: catalog.correiosFlatRateBRL,
+          pricing: catalog.pricing,
         },
       );
       setResult(quote);
@@ -210,9 +212,10 @@ export function FreightSimulatorCard({
               <p className="text-brand-700 text-xs font-medium uppercase">
                 Nossa cotação
               </p>
-              <p className="text-lg font-bold text-slate-900">
-                {formatBRL(result.priceBRL)}
-              </p>
+              <Price
+                value={result.priceBRL}
+                className="text-lg font-bold text-slate-900"
+              />
               <p className="text-sm text-slate-600">
                 {result.estimatedDaysMin === result.estimatedDaysMax
                   ? `${result.estimatedDaysMin} dias úteis`

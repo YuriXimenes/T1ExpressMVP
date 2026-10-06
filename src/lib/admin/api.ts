@@ -2,6 +2,7 @@
 
 import { createBrowserClient } from "@/lib/supabase/client";
 import { STORE_LOGO_BUCKET } from "@/lib/store-logo";
+import type { Pricing } from "@/lib/pricing";
 import type { CompetitorQuote, FreightQuoteResult } from "@/lib/types/freight";
 import type {
   DeliveryStage,
@@ -48,6 +49,34 @@ export async function checkIsAdmin(userId: string): Promise<boolean> {
     .maybeSingle();
   if (error) return false;
   return !!data;
+}
+
+// --- Preços ----------------------------------------------------------------
+
+export async function fetchPricing(): Promise<Pricing> {
+  const { data, error } = await createBrowserClient()
+    .from("pricing_settings" as never)
+    .select("base_brl, extra_store_brl, added_store_brl, insurance_per_100_brl")
+    .eq("id", 1)
+    .maybeSingle<{
+      base_brl: number | string;
+      extra_store_brl: number | string;
+      added_store_brl: number | string;
+      insurance_per_100_brl: number | string;
+    }>();
+  if (error || !data) throw new AdminError("Não foi possível carregar os preços.");
+  return {
+    baseBRL: Number(data.base_brl),
+    extraStoreBRL: Number(data.extra_store_brl),
+    addedStoreBRL: Number(data.added_store_brl),
+    insurancePer100BRL: Number(data.insurance_per_100_brl),
+  };
+}
+
+/** Salva os preços e já atualiza o catálogo do site, para a prévia bater com o banco. */
+export async function updatePricing(pricing: Pricing): Promise<void> {
+  await rpc<void>("admin_update_pricing", { p: pricing });
+  await revalidateCatalog();
 }
 
 /** Faz o site público reler o catálogo agora, sem esperar o cache de 5 min. */

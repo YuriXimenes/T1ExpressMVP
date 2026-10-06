@@ -9,6 +9,7 @@ import {
 } from "@/lib/data/market-comparison";
 import { pickupPartners } from "@/lib/data/pickup-partners";
 import { storeLogos } from "@/lib/data/store-logos";
+import { DEFAULT_PRICING } from "@/lib/pricing";
 import type { Catalog } from "./types";
 
 /** Fallback: exatamente os dados que o app usava antes de existir o banco. */
@@ -26,4 +27,5 @@ export const staticCatalog: Catalog = {
   },
   coupons,
   brazilStates,
+  pricing: DEFAULT_PRICING,
 };

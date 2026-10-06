@@ -1,6 +1,9 @@
+"use client";
+
 import { Check, ShieldCheck } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { computeInsuranceInfo } from "@/lib/insurance";
+import { useCatalog } from "@/lib/catalog/provider";
 import { cn } from "@/lib/utils";
 
 function formatBRL(value: number) {
@@ -22,7 +25,8 @@ export function InsuranceTierCard({
   optedIn: boolean;
   onOptedInChange: (value: boolean) => void;
 }) {
-  const insuranceInfo = computeInsuranceInfo(itemsTotal);
+  const { pricing } = useCatalog();
+  const insuranceInfo = computeInsuranceInfo(itemsTotal, pricing.insurancePer100BRL);
   const needsUpgrade = insuranceInfo.coverageNeededBRL > currentCoverageAmountBRL;
   const upgradeCostBRL = Math.max(0, insuranceInfo.extraCostBRL - currentExtraCostBRL);
 
@@ -62,8 +66,8 @@ export function InsuranceTierCard({
               </>
             ) : (
               <>
-                Aumentar cobertura para {formatBRL(insuranceInfo.coverageNeededBRL)} (+
-                {formatBRL(upgradeCostBRL)})
+                Aumentar cobertura para {formatBRL(insuranceInfo.coverageNeededBRL)} (
+                {upgradeCostBRL > 0 ? `+${formatBRL(upgradeCostBRL)}` : "grátis"})
               </>
             )}
           </button>

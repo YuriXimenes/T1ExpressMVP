@@ -18,21 +18,19 @@ import { useAuth } from "@/lib/auth";
 import { usePendingOrder, clearPendingOrder } from "@/lib/pending-order";
 import { useOrders, OrderError } from "@/lib/orders/store";
 import { computeInsuranceInfo } from "@/lib/insurance";
+import { orderFreightBRL } from "@/lib/pricing";
+import { Price } from "@/components/shared/price";
 import { applyCoupon, type CouponResult } from "@/lib/data/coupons";
 import { useCatalog } from "@/lib/catalog/provider";
 import { cn } from "@/lib/utils";
 import type { PedidoGroup } from "@/lib/types/order";
-
-function formatBRL(value: number) {
-  return `R$ ${value.toFixed(2).replace(".", ",")}`;
-}
 
 export function PedidoView() {
   const router = useRouter();
   const { isLoggedIn, isReady, user } = useAuth();
   const order = usePendingOrder();
   const { create } = useOrders();
-  const { stores: freightStores, coletaPartners, coupons } = useCatalog();
+  const { stores: freightStores, coletaPartners, coupons, pricing } = useCatalog();
 
   const origins = order
     ? freightStores.filter((store) => order.originStoreIds.includes(store.id))
@@ -103,17 +101,20 @@ export function PedidoView() {
         );
       }, 0) * 100,
     ) / 100;
-  const insuranceInfo = computeInsuranceInfo(itemsTotal);
+  const insuranceInfo = computeInsuranceInfo(itemsTotal, pricing.insurancePer100BRL);
+  // Recalcula com o preço atual do catálogo (a cotação salva na simulação pode
+  // ser de antes de o admin mudar o preço); o banco cobra este mesmo valor.
+  const freightPriceBRL = orderFreightBRL(order.originStoreIds.length, pricing);
   const insuranceExtraCostBRL = insuranceOptedIn ? insuranceInfo.extraCostBRL : 0;
   const freightAfterDiscountBRL = Math.max(
-    order.quote.priceBRL - (appliedCoupon?.discountBRL ?? 0),
+    freightPriceBRL - (appliedCoupon?.discountBRL ?? 0),
     0,
   );
   const amountDueBRL = freightAfterDiscountBRL + insuranceExtraCostBRL;
   const selectedStore = originPartners.find((partner) => partner.id === selectedStoreId);
 
   function handleApplyCoupon() {
-    const result = applyCoupon(couponCode, order!.quote.priceBRL, coupons);
+    const result = applyCoupon(couponCode, freightPriceBRL, coupons);
     if (!result) {
       setAppliedCoupon(null);
       setCouponError("Cupom inválido.");
@@ -164,7 +165,7 @@ export function PedidoView() {
         deliveryNote={deliveryNote}
         onDeliveryNoteChange={setDeliveryNote}
         destinationName={destination?.name}
-        freightPriceBRL={order.quote.priceBRL}
+        freightPriceBRL={freightPriceBRL}
         freightDaysLabel={`${order.quote.estimatedDaysMin} dias úteis`}
         itemsTotal={itemsTotal}
         insuranceOptedIn={insuranceOptedIn}
@@ -264,9 +265,10 @@ export function PedidoView() {
               />
               <div className="relative z-10">
                 <p className="text-brand-700 text-xs font-medium uppercase">Frete T1</p>
-                <p className="text-lg font-bold text-slate-900">
-                  {formatBRL(order.quote.priceBRL)}
-                </p>
+                <Price
+                  value={freightPriceBRL}
+                  className="text-lg font-bold text-slate-900"
+                />
                 <p className="text-sm text-slate-600">
                   {order.quote.estimatedDaysMin} dias úteis
                 </p>
