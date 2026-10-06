@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Package, Mail, Store, ShieldCheck, type LucideIcon } from "lucide-react";
+import { Package, Users, Mail, Store, ShieldCheck, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { checkIsAdmin } from "@/lib/admin/api";
@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 
 const NAV_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/admin/pedidos", label: "Pedidos", icon: Package },
+  { href: "/admin/usuarios", label: "Usuários", icon: Users },
   { href: "/admin/formularios", label: "Formulários", icon: Mail },
   { href: "/admin/catalogo", label: "Catálogo", icon: Store },
   { href: "/admin/administradores", label: "Administradores", icon: ShieldCheck },

@@ -3,6 +3,8 @@
 import { createBrowserClient } from "@/lib/supabase/client";
 import { STORE_LOGO_BUCKET } from "@/lib/store-logo";
 import type { Pricing } from "@/lib/pricing";
+import { fetchProfile } from "@/lib/account";
+import type { MockUser } from "@/lib/auth";
 import type { CompetitorQuote, FreightQuoteResult } from "@/lib/types/freight";
 import type {
   DeliveryStage,
@@ -99,6 +101,76 @@ export async function revalidateCatalog(): Promise<void> {
   }
 }
 
+// --- Usuários ----------------------------------------------------------
+
+export interface AdminUserSummary {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  city?: string;
+  state?: string;
+  avatarUrl?: string;
+  createdAt: string;
+  lastSignInAt?: string;
+  emailConfirmed: boolean;
+  orderCount: number;
+  isAdmin: boolean;
+}
+
+interface AdminUserRow {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  city: string | null;
+  state: string | null;
+  avatar_url: string | null;
+  created_at: string;
+  last_sign_in_at: string | null;
+  email_confirmed: boolean;
+  order_count: number | string;
+  is_admin: boolean;
+}
+
+/** Todos os usuários cadastrados (mais recentes primeiro). Só admin. */
+export async function fetchAdminUsers(): Promise<AdminUserSummary[]> {
+  const rows = await rpc<AdminUserRow[]>("admin_list_users", {});
+  return (rows ?? []).map((r) => ({
+    id: r.id,
+    name: r.name,
+    email: r.email,
+    phone: r.phone ?? undefined,
+    city: r.city ?? undefined,
+    state: r.state ?? undefined,
+    avatarUrl: r.avatar_url ?? undefined,
+    createdAt: r.created_at,
+    lastSignInAt: r.last_sign_in_at ?? undefined,
+    emailConfirmed: r.email_confirmed,
+    orderCount: Number(r.order_count),
+    isAdmin: r.is_admin,
+  }));
+}
+
+export interface AdminUserDetail {
+  summary: AdminUserSummary;
+  profile: MockUser;
+  orders: AdminOrderSummary[];
+}
+
+/** Tudo o que o usuário cadastrou + os pedidos dele. Só admin. */
+export async function fetchAdminUser(userId: string): Promise<AdminUserDetail | null> {
+  const [users, profile, orders] = await Promise.all([
+    fetchAdminUsers(),
+    // Mesma leitura da tela "Minha conta" (lojas preferidas liberadas ao admin na 0011).
+    fetchProfile(userId),
+    fetchAdminOrders(userId),
+  ]);
+  const summary = users.find((u) => u.id === userId);
+  if (!summary || !profile) return null;
+  return { summary, profile, orders };
+}
+
 // --- Pedidos -----------------------------------------------------------
 
 export interface AdminOrderSummary {
@@ -124,8 +196,9 @@ interface OrderSummaryRow {
   tickets: { resolved: boolean }[];
 }
 
-export async function fetchAdminOrders(): Promise<AdminOrderSummary[]> {
-  const { data, error } = await createBrowserClient()
+/** Todos os pedidos, ou só os de um usuário (tela de detalhe do usuário). */
+export async function fetchAdminOrders(userId?: string): Promise<AdminOrderSummary[]> {
+  let query = createBrowserClient()
     .from("orders")
     .select(
       `id, created_at, status, delivery_stage, amount_due_brl,
@@ -133,8 +206,9 @@ export async function fetchAdminOrders(): Promise<AdminOrderSummary[]> {
        charges:store_charges(status, amount_brl),
        tickets:support_tickets(resolved)`,
     )
-    .order("created_at", { ascending: false })
-    .returns<OrderSummaryRow[]>();
+    .order("created_at", { ascending: false });
+  if (userId) query = query.eq("user_id", userId);
+  const { data, error } = await query.returns<OrderSummaryRow[]>();
   if (error) throw friendlyAdminError(error);
   return (data ?? []).map((row) => ({
     id: row.id,

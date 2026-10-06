@@ -40,7 +40,7 @@ const FILTERS: { id: string; label: string; test: (o: AdminOrderSummary) => bool
     { id: "cancelled", label: "Cancelados", test: (o) => o.status === "cancelled" },
   ];
 
-function statusLabel(order: AdminOrderSummary) {
+export function statusLabel(order: AdminOrderSummary) {
   if (order.status === "pending-payment") return "Aguardando pagamento";
   if (order.status === "completed") return "Concluído";
   if (order.status === "cancelled") return "Cancelado";
@@ -50,7 +50,7 @@ function statusLabel(order: AdminOrderSummary) {
   return "Ativo";
 }
 
-function statusVariant(
+export function statusVariant(
   order: AdminOrderSummary,
 ): "default" | "secondary" | "destructive" {
   if (order.status === "cancelled") return "destructive";
