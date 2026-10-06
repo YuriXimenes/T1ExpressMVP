@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,11 +20,16 @@ import { StateSelect } from "@/components/shared/state-select";
 import {
   AdminError,
   fetchStores,
+  fetchFreightRoutes,
   upsertStore,
   deleteStore,
+  uploadStoreLogo,
+  STORE_LOGO_ACCEPT,
+  type AdminFreightRoute,
   type AdminStore,
   type StoreInput,
 } from "@/lib/admin/api";
+import { isValidStoreLogo } from "@/lib/store-logo";
 
 function emptyForm(): StoreInput {
   return {
@@ -39,6 +45,11 @@ function emptyForm(): StoreInput {
 
 export function LojasTab() {
   const [stores, setStores] = useState<AdminStore[] | null>(null);
+  const [routes, setRoutes] = useState<AdminFreightRoute[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [discardedLogo, setDiscardedLogo] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -47,18 +58,53 @@ export function LojasTab() {
   const [isSaving, setIsSaving] = useState(false);
 
   function load() {
-    fetchStores()
-      .then(setStores)
+    Promise.all([fetchStores(), fetchFreightRoutes()])
+      .then(([s, r]) => {
+        setStores(s);
+        setRoutes(r);
+      })
       .catch((err) =>
         setError(err instanceof AdminError ? err.message : "Não foi possível carregar."),
       );
   }
   useEffect(load, []);
 
+  // Uma loja só pode ser origem de pedido para um ponto de retirada se houver
+  // rota cadastrada (é de lá que sai a cotação dos concorrentes).
+  const missingRoutes = useMemo(() => {
+    const pickups = (stores ?? []).filter((s) => s.isPickupPoint);
+    const has = new Set(routes.map((r) => `${r.originStoreId}>${r.destinationStoreId}`));
+    return new Map(
+      (stores ?? []).map((store) => [
+        store.id,
+        pickups.filter((p) => p.id !== store.id && !has.has(`${store.id}>${p.id}`)),
+      ]),
+    );
+  }, [stores, routes]);
+
+  async function handleLogoFile(file: File | undefined) {
+    if (!file) return;
+    setIsUploading(true);
+    setFormError(null);
+    try {
+      const url = await uploadStoreLogo(file);
+      setForm((f) => ({ ...f, logoPath: url }));
+      setDiscardedLogo(false);
+    } catch (err) {
+      setFormError(
+        err instanceof AdminError ? err.message : "Não foi possível enviar o logo.",
+      );
+    } finally {
+      setIsUploading(false);
+      if (fileInput.current) fileInput.current.value = "";
+    }
+  }
+
   function openCreate() {
     setEditing(null);
     setForm(emptyForm());
     setFormError(null);
+    setDiscardedLogo(false);
     setOpen(true);
   }
 
@@ -72,11 +118,14 @@ export function LojasTab() {
       state: store.state,
       lat: store.lat,
       lng: store.lng,
-      logoPath: store.logoPath ?? "",
+      // Logo antigo que o site não consegue exibir (ex.: caminho do computador)
+      // é descartado aqui, senão o salvar seria recusado.
+      logoPath: isValidStoreLogo(store.logoPath) ? store.logoPath : "",
       logoOnDark: store.logoOnDark,
       isPickupPoint: store.isPickupPoint,
       pickupSortOrder: store.pickupSortOrder,
     });
+    setDiscardedLogo(!!store.logoPath && !isValidStoreLogo(store.logoPath));
     setFormError(null);
     setOpen(true);
   }
@@ -88,6 +137,11 @@ export function LojasTab() {
     try {
       await upsertStore(editing?.id ?? null, form);
       setOpen(false);
+      setNotice(
+        editing
+          ? null
+          : `Loja "${form.name}" criada. Para ela poder ser escolhida em pedidos, cadastre as rotas dela até cada ponto de retirada na aba Rotas.`,
+      );
       load();
     } catch (err) {
       setFormError(err instanceof AdminError ? err.message : "Não foi possível salvar.");
@@ -110,6 +164,14 @@ export function LojasTab() {
 
   return (
     <div>
+      {notice && (
+        <p
+          role="status"
+          className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800"
+        >
+          {notice}
+        </p>
+      )}
       <div className="mb-4 flex justify-end">
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
@@ -168,7 +230,7 @@ export function LojasTab() {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1.5">
-                  <Label htmlFor="store-lat">Latitude (opcional)</Label>
+                  <Label htmlFor="store-lat">Latitude</Label>
                   <Input
                     id="store-lat"
                     type="number"
@@ -183,7 +245,7 @@ export function LojasTab() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="store-lng">Longitude (opcional)</Label>
+                  <Label htmlFor="store-lng">Longitude</Label>
                   <Input
                     id="store-lng"
                     type="number"
@@ -198,14 +260,73 @@ export function LojasTab() {
                   />
                 </div>
               </div>
+              <p className="-mt-1 text-xs text-slate-500">
+                Opcionais. Sem elas a loja só não aparece no mapa. No Google Maps, clique
+                com o botão direito no local e copie os dois números.
+              </p>
               <div className="space-y-1.5">
-                <Label htmlFor="store-logo">Caminho do logo (opcional)</Label>
-                <Input
-                  id="store-logo"
-                  placeholder="/logos/loja.jpg"
-                  value={form.logoPath ?? ""}
-                  onChange={(e) => setForm({ ...form, logoPath: e.target.value })}
-                />
+                <Label>Logo</Label>
+                <div className="flex items-center gap-3">
+                  {form.logoPath ? (
+                    <div
+                      className={
+                        form.logoOnDark
+                          ? "flex h-14 w-24 items-center justify-center rounded-md bg-slate-900 p-1.5"
+                          : "flex h-14 w-24 items-center justify-center rounded-md border border-slate-200 p-1.5"
+                      }
+                    >
+                      <Image
+                        src={form.logoPath}
+                        alt="Prévia do logo"
+                        width={96}
+                        height={56}
+                        className="h-full w-auto object-contain"
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex h-14 w-24 items-center justify-center rounded-md border border-dashed border-slate-300 text-xs text-slate-400">
+                      Sem logo
+                    </div>
+                  )}
+                  <div className="flex flex-col items-start gap-1">
+                    <input
+                      ref={fileInput}
+                      type="file"
+                      accept={STORE_LOGO_ACCEPT}
+                      className="hidden"
+                      onChange={(e) => void handleLogoFile(e.target.files?.[0])}
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={isUploading}
+                      onClick={() => fileInput.current?.click()}
+                    >
+                      {isUploading
+                        ? "Enviando..."
+                        : form.logoPath
+                          ? "Trocar logo"
+                          : "Enviar logo"}
+                    </Button>
+                    {form.logoPath && !isUploading && (
+                      <button
+                        type="button"
+                        className="text-xs text-slate-500 hover:text-red-600"
+                        onClick={() => setForm({ ...form, logoPath: "" })}
+                      >
+                        Remover logo
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <p className="text-xs text-slate-500">PNG, JPG ou WEBP, até 2 MB.</p>
+                {discardedLogo && (
+                  <p className="text-xs text-amber-700">
+                    O logo salvo antes não era uma imagem válida para o site. Envie o
+                    arquivo pelo botão acima.
+                  </p>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox
@@ -252,7 +373,7 @@ export function LojasTab() {
               )}
             </div>
             <DialogFooter>
-              <Button onClick={() => void save()} disabled={isSaving}>
+              <Button onClick={() => void save()} disabled={isSaving || isUploading}>
                 {isSaving ? "Salvando..." : "Salvar"}
               </Button>
             </DialogFooter>
@@ -275,7 +396,18 @@ export function LojasTab() {
             {stores.map((store) => (
               <tr key={store.id} className="border-t border-slate-100">
                 <td className="px-4 py-2.5 font-medium text-slate-900">{store.code}</td>
-                <td className="px-4 py-2.5 text-slate-700">{store.name}</td>
+                <td className="px-4 py-2.5 text-slate-700">
+                  {store.name}
+                  {(missingRoutes.get(store.id)?.length ?? 0) > 0 && (
+                    <p className="text-xs text-amber-700">
+                      Sem rota para:{" "}
+                      {missingRoutes
+                        .get(store.id)
+                        ?.map((p) => p.name)
+                        .join(", ")}
+                    </p>
+                  )}
+                </td>
                 <td className="px-4 py-2.5 text-slate-500">
                   {store.city}/{store.state}
                 </td>

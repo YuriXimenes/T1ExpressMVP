@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import type { PickupPartner } from "@/lib/types/pickup-partner";
+import type { MappablePickupPartner, PickupPartner } from "@/lib/types/pickup-partner";
 
 const RIO_CENTER: [number, number] = [-22.9068, -43.3];
 
@@ -17,7 +17,7 @@ function pinIcon(color: string, size: number) {
   });
 }
 
-function FlyToSelected({ partner }: { partner?: PickupPartner }) {
+function FlyToSelected({ partner }: { partner?: MappablePickupPartner }) {
   const map = useMap();
 
   useEffect(() => {
@@ -36,7 +36,7 @@ function PartnerMarker({
   isSelected,
   onSelect,
 }: {
-  partner: PickupPartner;
+  partner: MappablePickupPartner;
   isSelected: boolean;
   onSelect: (id: string) => void;
 }) {
@@ -78,7 +78,11 @@ export function RioLeafletMap({
   selectedId: string | null;
   onSelect: (id: string) => void;
 }) {
-  const selected = partners.find((partner) => partner.id === selectedId);
+  // Loja sem coordenadas continua na lista ao lado, só não ganha pino.
+  const mappable = partners.filter(
+    (partner): partner is MappablePickupPartner => partner.coordinates !== undefined,
+  );
+  const selected = mappable.find((partner) => partner.id === selectedId);
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-100">
@@ -93,7 +97,7 @@ export function RioLeafletMap({
           url="https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png"
         />
 
-        {partners.map((partner) => (
+        {mappable.map((partner) => (
           <PartnerMarker
             key={partner.id}
             partner={partner}

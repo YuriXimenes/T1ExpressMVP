@@ -13,6 +13,12 @@ export interface PickupPartner {
   logo: string;
   /** Logos com arte clara/transparente precisam de um fundo escuro para ficarem visíveis. */
   onDark?: boolean;
-  /** Coordenadas geocodificadas a partir do endereço exato da loja (OpenStreetMap/Nominatim). */
-  coordinates: GeoCoordinates;
+  /**
+   * Coordenadas geocodificadas a partir do endereço exato da loja
+   * (OpenStreetMap/Nominatim). Opcional: loja sem coordenadas só não aparece
+   * no mapa.
+   */
+  coordinates?: GeoCoordinates;
 }
+
+export type MappablePickupPartner = PickupPartner & { coordinates: GeoCoordinates };
