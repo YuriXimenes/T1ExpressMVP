@@ -84,6 +84,19 @@ const COLUMNS: { label: string; value: (r: SurveyResponse) => string; wide?: boo
                 label: "Simulação: retirada prevista",
                 value: (r: SurveyResponse) => shortDate(r.answers.sim_pickup_date),
               },
+              ...(
+                [
+                  ["sim_uber_brl", "Uber"],
+                  ["sim_loggi_brl", "Loggi"],
+                  ["sim_correios_brl", "Correios"],
+                ] as const
+              ).map(([key, name]) => ({
+                label: `Simulação: custo no ${name}`,
+                value: (r: SurveyResponse) => {
+                  const v = r.answers[key];
+                  return typeof v === "number" ? formatBRL(v) : "";
+                },
+              })),
             ]
           : [column];
     }),
