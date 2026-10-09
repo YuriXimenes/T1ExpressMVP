@@ -9,7 +9,7 @@ export const REGION_OTHER = "Outra região";
 
 export const REGIONS = [
   "Grande Tijuca",
-  "Outras áreas da Zona Norte",
+  "Zona Norte",
   "Centro",
   "Zona Sul",
   "Zona Oeste",
@@ -34,8 +34,7 @@ export function normalizeName(value: string | undefined): string {
 const list = (names: string) => names.split("|").map((n) => normalizeName(n));
 
 /** Bairros da cidade do Rio de Janeiro por região. */
-type RioRegion =
-  "Grande Tijuca" | "Centro" | "Zona Sul" | "Zona Oeste" | "Outras áreas da Zona Norte";
+type RioRegion = "Grande Tijuca" | "Centro" | "Zona Sul" | "Zona Oeste" | "Zona Norte";
 
 /** Exportado só para o teste que garante que nenhum bairro está em duas regiões. */
 export const RIO_NEIGHBORHOODS: Record<RioRegion, string[]> = {
@@ -51,7 +50,7 @@ export const RIO_NEIGHBORHOODS: Record<RioRegion, string[]> = {
   "Zona Oeste": list(
     "Barra da Tijuca|Recreio dos Bandeirantes|Recreio|Vargem Grande|Vargem Pequena|Camorim|Itanhangá|Joá|Grumari|Rio das Pedras|Muzema|Jacarepaguá|Taquara|Tanque|Pechincha|Anil|Curicica|Gardênia Azul|Cidade de Deus|Praça Seca|Vila Valqueire|Realengo|Padre Miguel|Bangu|Senador Camará|Vila Aliança|Magalhães Bastos|Vila Militar|Deodoro|Campo dos Afonsos|Jardim Sulacap|Sulacap|Santíssimo|Senador Vasconcelos|Campo Grande|Inhoaíba|Cosmos|Paciência|Santa Cruz|Sepetiba|Guaratiba|Barra de Guaratiba|Pedra de Guaratiba|Ilha de Guaratiba|Mendanha|Gericinó",
   ),
-  "Outras áreas da Zona Norte": list(
+  "Zona Norte": list(
     "São Cristóvão|Benfica|Vasco da Gama|Mangueira|Caju|Maré|Manguinhos|Bonsucesso|Ramos|Olaria|Penha|Penha Circular|Vila da Penha|Brás de Pina|Vista Alegre|Irajá|Colégio|Vicente de Carvalho|Vila Kosmos|Cordovil|Parada de Lucas|Vigário Geral|Jardim América|Pavuna|Costa Barros|Acari|Anchieta|Guadalupe|Ricardo de Albuquerque|Coelho Neto|Barros Filho|Honório Gurgel|Rocha Miranda|Turiaçu|Madureira|Vaz Lobo|Campinho|Cascadura|Cavalcanti|Engenheiro Leal|Quintino Bocaiúva|Piedade|Encantado|Abolição|Pilares|Água Santa|Engenho de Dentro|Todos os Santos|Méier|Cachambi|Lins de Vasconcelos|Engenho Novo|Sampaio|Rocha|Riachuelo|São Francisco Xavier|Jacaré|Jacarezinho|Del Castilho|Inhaúma|Engenho da Rainha|Tomás Coelho|Higienópolis|Maria da Graça|Bento Ribeiro|Marechal Hermes|Oswaldo Cruz|Osvaldo Cruz|Complexo do Alemão|Ilha do Governador|Ribeira|Portuguesa|Jardim Guanabara|Cocotá|Tauá|Moneró|Zumbi|Pitangueiras|Bancários|Cacuia|Galeão|Praia da Bandeira",
   ),
 };

@@ -129,7 +129,7 @@ describe("região", () => {
         : [];
     expect(labels).toEqual([
       "Grande Tijuca",
-      "Outras áreas da Zona Norte",
+      "Zona Norte",
       "Centro",
       "Zona Sul",
       "Zona Oeste",

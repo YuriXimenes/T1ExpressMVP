@@ -32,9 +32,9 @@ describe("classifyRegion — cidade do Rio", () => {
     ["Barra da Tijuca", "Zona Oeste"],
     ["Santíssimo", "Zona Oeste"],
     ["Campo Grande", "Zona Oeste"],
-    ["Méier", "Outras áreas da Zona Norte"],
-    ["Ilha do Governador", "Outras áreas da Zona Norte"],
-    ["Madureira", "Outras áreas da Zona Norte"],
+    ["Méier", "Zona Norte"],
+    ["Ilha do Governador", "Zona Norte"],
+    ["Madureira", "Zona Norte"],
   ])("%s → %s", (neighborhood, expected) => {
     expect(classifyRegion(rio(neighborhood), verified)).toBe(expected);
     expect(classifyRegion(rio(neighborhood), typed)).toBe(expected);
