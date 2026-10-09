@@ -291,10 +291,20 @@ function mapOrder(row: OrderRow): MockOrder {
 }
 
 /** Pedidos do usuário logado (a RLS já limita ao dono), do mais antigo ao mais novo. */
+/**
+ * Os pedidos do usuário logado. Filtra pelo próprio id porque a RLS sozinha não
+ * basta: um admin lê os pedidos de todos (Etapa 5) e "meus pedidos" não pode
+ * misturar os dos outros.
+ */
 export async function fetchOrders(): Promise<MockOrder[]> {
-  const { data, error } = await createBrowserClient()
+  const supabase = createBrowserClient();
+  const { data: session } = await supabase.auth.getSession();
+  const userId = session.session?.user.id;
+  if (!userId) return [];
+  const { data, error } = await supabase
     .from("orders")
     .select(ORDER_SELECT)
+    .eq("user_id", userId)
     .order("created_at", { ascending: true })
     .returns<OrderRow[]>();
   if (error) throw friendlyOrderError(error);
