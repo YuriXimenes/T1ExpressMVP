@@ -85,8 +85,8 @@ export function ContaView() {
       </h1>
       <p className="mt-1 text-slate-600">Acompanhe seus pedidos e ajuste seus dados.</p>
 
-      {/* Convite da pesquisa: depois do 1º pedido, em todas as abas. `answered` vem da tabela de respostas no próximo passo. */}
-      {!isLoading && orders.length > 0 && <SurveyBanner answered={false} />}
+      {/* Convite da pesquisa: depois do 1º pedido, em todas as abas; o próprio banner some quando a pessoa já respondeu. */}
+      {!isLoading && orders.length > 0 && <SurveyBanner />}
 
       <Tabs
         value={tab}
