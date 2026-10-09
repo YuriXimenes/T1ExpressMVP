@@ -10,6 +10,7 @@ import {
   testimonialDisplayName,
   toggleMulti,
   type MultiQuestion,
+  type SingleQuestion,
   type SurveyAnswers,
   type SurveyQuestion,
 } from "@/lib/survey/questions";
@@ -86,12 +87,76 @@ describe("etapa respondida", () => {
 });
 
 describe("retomada", () => {
+  const region = { region: "Zona Sul" };
+
   it("volta para a 1ª etapa incompleta e termina em SURVEY_STEPS.length", () => {
     expect(firstPendingStep({})).toBe(0);
-    expect(firstPendingStep({ participation: "real", ease_score: 5 })).toBe(1);
+    expect(firstPendingStep(region)).toBe(1);
+    expect(firstPendingStep({ ...region, participation: "real", ease_score: 5 })).toBe(2);
     expect(
-      firstPendingStep({ participation: "real", ease_score: 5, problem_fit: 4 }),
-    ).toBe(1);
+      firstPendingStep({
+        ...region,
+        participation: "real",
+        ease_score: 5,
+        problem_fit: 4,
+      }),
+    ).toBe(2);
+  });
+
+  it("quem começou antes da pergunta de região volta a ela, sem perder o que respondeu", () => {
+    const legacy = { participation: "real", ease_score: 5 };
+    expect(firstPendingStep(legacy)).toBe(0);
+    const payload = stepPayload(step("confirmacao"), { ...legacy, region: "Centro" });
+    expect(payload.region).toBe("Centro");
+    expect(payload).not.toHaveProperty("participation"); // a etapa não reescreve as outras
+    expect(firstPendingStep({ ...legacy, region: "Centro" })).toBe(2);
+  });
+});
+
+describe("região", () => {
+  const confirm = () => step("confirmacao");
+
+  it("é a 1ª etapa e é obrigatória", () => {
+    expect(SURVEY_STEPS[0].id).toBe("confirmacao");
+    expect(isStepAnswered(confirm(), {})).toBe(false);
+    expect(isStepAnswered(confirm(), { region: "Zona Oeste" })).toBe(true);
+  });
+
+  it("tem as 8 regiões da pesquisa mais 'Outra região'", () => {
+    const labels =
+      question("region").type === "single"
+        ? (question("region") as SingleQuestion).options.map((o) => o.label)
+        : [];
+    expect(labels).toEqual([
+      "Grande Tijuca",
+      "Outras áreas da Zona Norte",
+      "Centro",
+      "Zona Sul",
+      "Zona Oeste",
+      "Baixada Fluminense",
+      "Niterói ou São Gonçalo",
+      "Maricá ou Região dos Lagos",
+      "Outra região",
+    ]);
+  });
+
+  it("grava a região final, o que o CEP detectou e o CEP usado", () => {
+    const payload = stepPayload(confirm(), {
+      region: "Zona Sul",
+      region_detected: "Grande Tijuca",
+      region_zip: "20520-054",
+    });
+    expect(payload).toEqual({
+      region: "Zona Sul",
+      region_detected: "Grande Tijuca",
+      region_zip: "20520-054",
+    });
+  });
+
+  it("sem detecção, grava nulo no que o CEP não achou", () => {
+    const payload = stepPayload(confirm(), { region: "Centro" });
+    expect(payload.region_detected).toBeNull();
+    expect(payload.region_zip).toBeNull();
   });
 });
 
