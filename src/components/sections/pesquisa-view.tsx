@@ -21,13 +21,17 @@ import {
   type SurveyResponse,
 } from "@/lib/survey/api";
 import {
+  SURVEY_CLOSING,
   SURVEY_IS_FINAL,
   SURVEY_STEPS,
   firstPendingStep,
+  isStepAnswered,
+  stepPayload,
+  visibleQuestions,
   type SurveyAnswers,
-  type SurveyQuestion,
+  type SurveyOption,
 } from "@/lib/survey/questions";
-import { cn } from "@/lib/utils";
+import { SurveyQuestionField } from "@/components/sections/survey-question-field";
 
 const HOW_IT_WORKS = [
   "Você compra suas cartas em uma ou mais lojas do Rio, como já faz hoje.",
@@ -40,56 +44,16 @@ function Shell({ children }: { children: React.ReactNode }) {
   return <div className="mx-auto max-w-2xl">{children}</div>;
 }
 
-function SingleChoice({
-  question,
-  value,
-  onChange,
-}: {
-  question: SurveyQuestion;
-  value: string | undefined;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <fieldset>
-      <legend className="font-semibold text-slate-900">
-        {question.label}
-        <span className="ml-1 text-xs font-normal text-slate-500">(escolha única)</span>
-      </legend>
-      <div className="mt-3 flex flex-col gap-2">
-        {question.options.map((option) => {
-          const selected = value === option.value;
-          return (
-            <label
-              key={option.value}
-              className={cn(
-                "flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm transition-colors",
-                selected
-                  ? "border-brand-600 bg-brand-50 text-slate-900"
-                  : "border-slate-200 text-slate-700 hover:bg-slate-50",
-              )}
-            >
-              <input
-                type="radio"
-                name={question.id}
-                value={option.value}
-                checked={selected}
-                onChange={() => onChange(option.value)}
-                className="accent-brand-600 h-4 w-4"
-              />
-              {option.label}
-            </label>
-          );
-        })}
-      </div>
-    </fieldset>
-  );
-}
-
 export function PesquisaView() {
   const router = useRouter();
   const { isLoggedIn, isReady, user } = useAuth();
   const { orders, isLoading: ordersLoading } = useOrders();
   const { coletaPartners, stores } = useCatalog();
+  // Pergunta 17: lojas do catálogo (grava o nome, que o admin e o CSV leem direto).
+  const storeOptions: SurveyOption[] = stores.map((st) => ({
+    value: st.name,
+    label: st.name,
+  }));
 
   const [survey, setSurvey] = useState<SurveyResponse | null>(null);
   const [surveyLoaded, setSurveyLoaded] = useState(false);
@@ -274,7 +238,7 @@ export function PesquisaView() {
           <h1 className="mt-3 text-2xl font-bold text-slate-900">Obrigado!</h1>
           <p className="mt-2 text-slate-600">
             {SURVEY_IS_FINAL
-              ? "Sua pesquisa foi enviada. Suas respostas vão ajudar a definir a T1 Express."
+              ? SURVEY_CLOSING
               : "Suas respostas até aqui foram salvas. Em breve teremos as próximas perguntas."}
           </p>
           <Button className="mt-6" asChild>
@@ -285,22 +249,39 @@ export function PesquisaView() {
     );
   }
 
-  const stepAnswers = Object.fromEntries(
-    step.questions.map((q) => [q.id, draft[q.id] ?? null]),
-  );
-  const canContinue = step.questions.every(
-    (q) => !q.required || (draft[q.id] !== undefined && draft[q.id] !== null),
-  );
+  const totalBlocks = SURVEY_STEPS.filter((s) => s.block).length;
   const isLastStep = stepIndex === SURVEY_STEPS.length - 1;
+  const canContinue = isStepAnswered(step, draft);
 
   async function submitStep() {
-    await saveSurveyAnswers(stepAnswers);
+    await saveSurveyAnswers(stepPayload(step, draft));
     if (isLastStep && SURVEY_IS_FINAL) await completeSurvey();
   }
 
   return (
     <Shell>
-      {step.id === "como-funciona" && (
+      {step.block ? (
+        <>
+          <p className="text-brand-600 text-sm font-semibold">
+            Bloco {step.block} de {totalBlocks}
+          </p>
+          <div
+            className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={totalBlocks}
+            aria-valuenow={step.block}
+            aria-label="Progresso da pesquisa"
+          >
+            <div
+              className="bg-brand-600 h-full rounded-full transition-all"
+              style={{ width: `${(step.block / totalBlocks) * 100}%` }}
+            />
+          </div>
+          <h1 className="mt-4 text-2xl font-bold text-slate-900">{step.title}</h1>
+          {step.subtitle && <p className="mt-2 text-slate-600">{step.subtitle}</p>}
+        </>
+      ) : (
         <>
           <h1 className="text-2xl font-bold text-slate-900">
             Como a T1 Express funciona
@@ -334,15 +315,21 @@ export function PesquisaView() {
         </>
       )}
 
-      <Card className="mt-6 gap-5 p-6">
-        {step.questions.map((q) => (
-          <SingleChoice
+      <Card className="mt-6 gap-6 p-6">
+        {visibleQuestions(step, draft).map((q) => (
+          <SurveyQuestionField
             key={q.id}
             question={q}
-            value={typeof draft[q.id] === "string" ? (draft[q.id] as string) : undefined}
-            onChange={(v) => setDraft({ ...draft, [q.id]: v })}
+            value={draft[q.id]}
+            storeOptions={storeOptions}
+            onChange={(v) => setDraft((d) => ({ ...d, [q.id]: v }))}
           />
         ))}
+        {step.footnote && (
+          <p className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
+            {step.footnote}
+          </p>
+        )}
         <Button
           className="w-full sm:w-fit"
           disabled={!canContinue || busy}
@@ -350,11 +337,11 @@ export function PesquisaView() {
         >
           {busy
             ? "Salvando..."
-            : step.id === "como-funciona"
+            : !step.block
               ? "Começar a pesquisa"
               : isLastStep && SURVEY_IS_FINAL
                 ? "Enviar respostas"
-                : "Continuar"}
+                : "Seguir para o próximo bloco"}
         </Button>
         {errorBox}
       </Card>

@@ -8,7 +8,11 @@ import { formatBRL } from "@/components/shared/price";
 import { AdminError, fetchSurveyResponses } from "@/lib/admin/api";
 import { downloadCsv, toCsv } from "@/lib/csv";
 import type { SurveyResponse } from "@/lib/survey/api";
-import { SURVEY_QUESTIONS, answerLabel } from "@/lib/survey/questions";
+import {
+  SURVEY_QUESTIONS,
+  answerLabel,
+  testimonialDisplayName,
+} from "@/lib/survey/questions";
 import { cn } from "@/lib/utils";
 
 type Filter = "todas" | "concluidas" | "andamento";
@@ -34,10 +38,25 @@ const COLUMNS: { label: string; value: (r: SurveyResponse) => string; wide?: boo
     { label: "Total dos itens", value: (r) => formatBRL(r.itemsTotalBRL) },
     { label: "Valor pago", value: (r) => formatBRL(r.amountPaidBRL) },
     ...SURVEY_QUESTIONS.map((q) => ({
-      label: q.label,
+      // Cabeçalho = pergunta completa, com o número do formulário quando tem.
+      label: `${q.number !== undefined ? `${q.number}. ` : ""}${q.label}`,
       value: (r: SurveyResponse) => answerLabel(q, r.answers[q.id]),
       wide: true,
     })),
+    {
+      label: "Autorizou publicar a mensagem",
+      value: (r) =>
+        r.answers.testimonial_opt_in === undefined
+          ? ""
+          : r.answers.testimonial_authorized === true
+            ? "Sim"
+            : "Não",
+    },
+    {
+      // Já resolvido: o nome cadastrado inteiro, só o primeiro nome ou o nick.
+      label: "Identificação na mensagem",
+      value: (r) => testimonialDisplayName(r.answers, r.respondentName),
+    },
   ];
 
 const FILTERS: { id: Filter; label: string; test: (r: SurveyResponse) => boolean }[] = [
