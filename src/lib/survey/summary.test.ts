@@ -211,6 +211,18 @@ describe("indicadores, região e depoimentos", () => {
     expect(k.nps.score).toBe(0);
   });
 
+  it("'Fariam o pedido': com certeza + provavelmente, sobre quem respondeu a 26", () => {
+    const k = summarizeKpis([
+      resp({ sim_decision: "Com certeza faria o pedido pela T1 nessas condições." }),
+      resp({ sim_decision: "Provavelmente faria o pedido pela T1." }),
+      resp({ sim_decision: "Ainda não tenho certeza." }),
+      resp({ sim_decision: "Com certeza não faria o pedido pela T1." }),
+      resp({}), // não respondeu: fora da conta
+    ]);
+    expect(k.wouldOrderPct).toBe(50);
+    expect(summarizeKpis([resp({})]).wouldOrderPct).toBeNull();
+  });
+
   it("região: % de quem corrigiu a sugestão do CEP", () => {
     const acc = summarizeRegionAccuracy([
       resp({ region: "Zona Sul", region_detected: "Zona Sul" }),
@@ -246,7 +258,7 @@ describe("indicadores, região e depoimentos", () => {
 });
 
 describe("seções", () => {
-  it("Abertura + 5 blocos, na ordem do formulário, sem o campo do nick", () => {
+  it("Abertura + 6 blocos, na ordem do formulário, sem o campo do nick", () => {
     const sections = surveySections();
     expect(sections.map((s) => s.title)).toEqual([
       "Abertura",
@@ -254,7 +266,8 @@ describe("seções", () => {
       "Bloco 2 – Preço e prazo",
       "Bloco 3 – Valor para as lojas",
       "Bloco 4 – Confiança, futuro e compromisso",
-      "Bloco 5 – Mensagem para o site e as redes",
+      "Bloco 5 – Simulação de Caso",
+      "Bloco 6 – Mensagem para o site e as redes",
     ]);
     expect(sections[0].questions.map((x) => x.id)).toEqual([
       "region",

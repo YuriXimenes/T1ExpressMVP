@@ -13,6 +13,7 @@ import {
   answerLabel,
   testimonialDisplayName,
 } from "@/lib/survey/questions";
+import { formatShortDate } from "@/lib/operating-calendar";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PesquisaResumo } from "@/components/admin/pesquisa-resumo";
@@ -64,7 +65,27 @@ const COLUMNS: { label: string; value: (r: SurveyResponse) => string; wide?: boo
                 typeof r.answers.region_zip === "string" ? r.answers.region_zip : "",
             },
           ]
-        : [column];
+        : q.id === "sim_what_change"
+          ? [
+              column,
+              // O que a pessoa viu na simulação (valor e datas calculados na hora).
+              {
+                label: "Simulação: valor total do serviço",
+                value: (r: SurveyResponse) =>
+                  typeof r.answers.sim_total_brl === "number"
+                    ? formatBRL(r.answers.sim_total_brl)
+                    : "",
+              },
+              {
+                label: "Simulação: coleta prevista",
+                value: (r: SurveyResponse) => shortDate(r.answers.sim_collect_date),
+              },
+              {
+                label: "Simulação: retirada prevista",
+                value: (r: SurveyResponse) => shortDate(r.answers.sim_pickup_date),
+              },
+            ]
+          : [column];
     }),
     {
       label: "Autorizou publicar a mensagem",
@@ -81,6 +102,11 @@ const COLUMNS: { label: string; value: (r: SurveyResponse) => string; wide?: boo
       value: (r) => testimonialDisplayName(r.answers, r.respondentName),
     },
   ];
+
+/** "AAAA-MM-DD" → "dd/mm/aaaa". */
+function shortDate(value: unknown): string {
+  return typeof value === "string" ? formatShortDate(value) : "";
+}
 
 const FILTERS: { id: Filter; label: string; test: (r: SurveyResponse) => boolean }[] = [
   { id: "todas", label: "Todas", test: () => true },

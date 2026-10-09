@@ -1,6 +1,7 @@
 import type { SurveyResponse } from "@/lib/survey/api";
 import {
   NO_STORE,
+  SIM_DECISION_OPTIONS,
   SURVEY_STEPS,
   isVisible,
   testimonialDisplayName,
@@ -14,6 +15,9 @@ import {
  * summary.test.ts. O denominador de cada pergunta é quem a respondeu (as
  * condicionais contam só quem as viu).
  */
+
+/** As duas respostas positivas da pergunta 26. */
+const SIM_WOULD_ORDER = SIM_DECISION_OPTIONS.slice(0, 2);
 
 export interface OptionStat {
   value: string;
@@ -214,11 +218,17 @@ export interface SurveyKpis {
   problemFitMean: number | null;
   /** % de "Sim, quero" entre quem respondeu a pergunta 24; null sem respostas. */
   pilotYesPct: number | null;
+  /** % de "com certeza" + "provavelmente faria" na simulação (pergunta 26). */
+  wouldOrderPct: number | null;
 }
 
 export function summarizeKpis(responses: SurveyResponse[]): SurveyKpis {
   const completed = responses.filter((r) => r.completedAt).length;
   const pilot = responses.filter((r) => typeof r.answers.pilot_interest === "string");
+  const decided = responses.filter((r) => typeof r.answers.sim_decision === "string");
+  const wouldOrder = decided.filter((r) =>
+    SIM_WOULD_ORDER.includes(String(r.answers.sim_decision)),
+  );
   return {
     total: responses.length,
     completed,
@@ -226,6 +236,7 @@ export function summarizeKpis(responses: SurveyResponse[]): SurveyKpis {
     nps: summarizeNps(responses),
     easeMean: meanOf(responses, "ease_score"),
     problemFitMean: meanOf(responses, "problem_fit"),
+    wouldOrderPct: decided.length ? pct(wouldOrder.length, decided.length) : null,
     pilotYesPct: pilot.length
       ? pct(
           pilot.filter((r) => r.answers.pilot_interest === "Sim, quero").length,

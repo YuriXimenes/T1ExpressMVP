@@ -1,4 +1,5 @@
 import { REGIONS } from "@/lib/survey/regions";
+import { SIMULATION_ANSWER_KEYS, SIMULATION_PRICE, brl } from "@/lib/survey/simulation";
 
 /**
  * Cadastro da pesquisa de mercado. Incluir ou mudar uma pergunta é só editar
@@ -26,7 +27,7 @@ interface BaseQuestion {
   /** Obrigatória por padrão; `false` para as "(Opcional)". */
   required?: boolean;
   /** Só aparece (e só é exigida) quando outra resposta tem este valor. */
-  showIf?: { question: string; equals: string };
+  showIf?: { question: string; equals?: string; oneOf?: string[] };
 }
 
 export interface SingleQuestion extends BaseQuestion {
@@ -76,6 +77,8 @@ export interface SurveyStep {
   derive?: (answers: SurveyAnswers) => SurveyAnswers;
   /** Chaves gravadas junto da etapa que não são perguntas (ex.: região detectada pelo CEP). */
   extraKeys?: string[];
+  /** Mostra o resumo do 1º pedido com preço e prazo antes das perguntas. */
+  simulation?: boolean;
 }
 
 const single = (
@@ -161,6 +164,17 @@ export const TESTIMONIAL_AUTHORIZATION =
 
 export const SURVEY_CLOSING =
   "Valeu demais! Você está entre os primeiros jogadores a testar a T1 Express.";
+
+export const SIM_DECISION_OPTIONS = [
+  "Com certeza faria o pedido pela T1 nessas condições.",
+  "Provavelmente faria o pedido pela T1.",
+  "Ainda não tenho certeza.",
+  "Provavelmente não faria o pedido pela T1.",
+  "Com certeza não faria o pedido pela T1.",
+];
+
+/** Quem responde isso na 26 vê a 31 ("o que precisaria mudar"). */
+export const SIM_DECISION_NEGATIVE = SIM_DECISION_OPTIONS.slice(2);
 
 /** Etapas na ordem do formulário (depois da confirmação do pedido). */
 export const SURVEY_STEPS: SurveyStep[] = [
@@ -475,6 +489,96 @@ export const SURVEY_STEPS: SurveyStep[] = [
   {
     id: "bloco-5",
     block: 5,
+    title: "Simulação de Caso",
+    subtitle:
+      "Agora que você conhece a plataforma, vamos considerar o seu pedido e as condições do serviço para entender se essa seria uma opção interessante para você.",
+    simulation: true,
+    extraKeys: [...SIMULATION_ANSWER_KEYS],
+    questions: [
+      single(
+        "sim_decision",
+        "Considerando exatamente esse pedido, o preço total do serviço e a data prevista para retirada, se fosse uma compra real, qual seria sua decisão?",
+        SIM_DECISION_OPTIONS,
+        { number: 26 },
+      ),
+      single(
+        "sim_deadline",
+        "Considerando a data que seu pedido estará disponível para retirada, como você avalia esse prazo?",
+        [
+          "O prazo é adequado; faria o pedido e retiraria nessa data.",
+          "O prazo é um pouco longo, mas ainda aceitaria esperar.",
+          "Só aceitaria esse prazo se as cartas não fossem urgentes.",
+          "O prazo é longo demais; procuraria outra alternativa para conseguir as cartas.",
+          "O prazo é longo demais; desistiria da compra.",
+        ],
+        { number: 27 },
+      ),
+      single(
+        "sim_cost_effect",
+        `Sabendo que o serviço custa ${brl(SIMULATION_PRICE.firstStoreBRL)} pela primeira loja e ${brl(SIMULATION_PRICE.extraStoreBRL)} por cada loja adicional, como esse custo influenciaria a forma de montar seu pedido?`,
+        [
+          "Manteria todas as lojas e as cartas selecionadas.",
+          "Tentaria concentrar as compras em menos lojas para pagar menos pelo serviço.",
+          "Retiraria algumas cartas do pedido para reduzir o custo total.",
+          "Faria o pedido pela T1 apenas se o preço fosse menor.",
+          "Preferiria buscar as cartas pessoalmente ou utilizar outra alternativa.",
+          "Desistiria deste pedido.",
+        ],
+        { number: 28 },
+      ),
+      single(
+        "sim_alternative",
+        "Se a T1 Express não estivesse disponível para esse pedido, o que você provavelmente faria?",
+        [
+          "Iria pessoalmente às lojas para buscar as cartas.",
+          "Utilizaria outro serviço de entrega ou transporte.",
+          "Compraria apenas em algumas das lojas e reduziria o pedido.",
+          "Adiaria a compra até conseguir buscar as cartas.",
+          "Desistiria de parte ou de toda a compra.",
+          "Não faria essa compra de qualquer forma.",
+          "Outra situação.",
+        ],
+        { number: 29 },
+      ),
+      single(
+        "sim_main_factor",
+        "Qual fator mais influenciou sua decisão sobre esse pedido?",
+        [
+          "O preço total do serviço.",
+          "A data prevista para retirada.",
+          "Poder reunir compras de várias lojas em uma única entrega.",
+          "A localização da loja escolhida para retirada.",
+          "A confiança e a segurança no transporte das cartas.",
+          "Eu normalmente buscaria as cartas pessoalmente.",
+          "O pedido simulado não representa uma compra que eu faria.",
+          "Outro fator.",
+        ],
+        { number: 30 },
+      ),
+      multi(
+        "sim_what_change",
+        "O que precisaria mudar para que você considerasse fazer esse pedido pela T1 Express?",
+        [
+          "Um preço menor pelo serviço.",
+          "Uma data de retirada mais próxima.",
+          "Outra loja parceira para retirar as cartas.",
+          "Mais garantias em caso de perda ou dano.",
+          "Mais informações sobre o acompanhamento do pedido.",
+          "Outra condição.",
+          "Mesmo com essas mudanças, eu não utilizaria a T1 para esse pedido.",
+        ],
+        {
+          number: 31,
+          max: 2,
+          // Só para quem não topou, ou não tem certeza, na pergunta 26.
+          showIf: { question: "sim_decision", oneOf: SIM_DECISION_NEGATIVE },
+        },
+      ),
+    ],
+  },
+  {
+    id: "bloco-6",
+    block: 6,
     title: "Mensagem para o site e as redes",
     subtitle: "Um espaço para os jogadores que confiaram na T1 desde o início.",
     questions: [
@@ -482,13 +586,13 @@ export const SURVEY_STEPS: SurveyStep[] = [
         "testimonial_opt_in",
         "Você gostaria de deixar uma mensagem para aparecer no site e nas redes da T1 Express, no espaço dos jogadores que confiaram na T1 desde o início?",
         ["Sim", "Não"],
-        { number: 26 },
+        { number: 32 },
       ),
       {
         id: "testimonial_message",
         label: "Escreva sua mensagem.",
         type: "text",
-        number: 27,
+        number: 33,
         maxLength: 280,
         rows: 4,
         showIf: { question: "testimonial_opt_in", equals: "Sim" },
@@ -497,7 +601,7 @@ export const SURVEY_STEPS: SurveyStep[] = [
         id: "testimonial_display",
         label: "Como você quer aparecer junto da mensagem?",
         type: "single",
-        number: 28,
+        number: 34,
         options: TESTIMONIAL_NAME_CHOICES,
         showIf: { question: "testimonial_opt_in", equals: "Sim" },
       },
@@ -536,7 +640,11 @@ export function isVisible(q: SurveyQuestion, answers: SurveyAnswers): boolean {
   // Também precisa de a pergunta-mãe estar visível (nick só se a 28 aparece).
   const parent = SURVEY_QUESTIONS.find((p) => p.id === q.showIf!.question);
   if (parent && !isVisible(parent, answers)) return false;
-  return answers[q.showIf.question] === q.showIf.equals;
+  const parentAnswer = answers[q.showIf.question];
+  if (q.showIf.oneOf) {
+    return typeof parentAnswer === "string" && q.showIf.oneOf.includes(parentAnswer);
+  }
+  return parentAnswer === q.showIf.equals;
 }
 
 export function visibleQuestions(step: SurveyStep, answers: SurveyAnswers) {

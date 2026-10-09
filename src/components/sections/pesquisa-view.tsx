@@ -33,6 +33,7 @@ import {
 } from "@/lib/survey/questions";
 import { SurveyQuestionField } from "@/components/sections/survey-question-field";
 import { SurveyRegionStep } from "@/components/sections/survey-region-step";
+import { SurveySimulation } from "@/components/sections/survey-simulation";
 
 const HOW_IT_WORKS = [
   "Você compra suas cartas em uma ou mais lojas do Rio, como já faz hoje.",
@@ -277,12 +278,19 @@ export function PesquisaView() {
   }
 
   const totalBlocks = SURVEY_STEPS.filter((s) => s.block).length;
-  const isLastStep = stepIndex === SURVEY_STEPS.length - 1;
   const canContinue = isStepAnswered(step, draft);
+  // Esta etapa é a última que falta? (Também vale para quem foi reaberto só para
+  // responder um bloco do meio da pesquisa: aí ele "envia" e conclui.)
+  const payload = stepPayload(step, draft);
+  const finishesSurvey =
+    SURVEY_IS_FINAL &&
+    SURVEY_STEPS.every(
+      (s) => s.id === step.id || isStepAnswered(s, survey?.answers ?? {}),
+    );
 
   async function submitStep() {
-    await saveSurveyAnswers(stepPayload(step, draft));
-    if (isLastStep && SURVEY_IS_FINAL) await completeSurvey();
+    await saveSurveyAnswers(payload);
+    if (finishesSurvey) await completeSurvey();
   }
 
   return (
@@ -342,6 +350,19 @@ export function PesquisaView() {
         </>
       )}
 
+      {step.simulation &&
+        (firstOrder ? (
+          <SurveySimulation
+            order={firstOrder}
+            onReady={(extras) => setDraft((d) => ({ ...d, ...extras }))}
+          />
+        ) : (
+          <p className="mt-6 rounded-lg bg-amber-50 p-4 text-sm text-amber-800">
+            Não encontramos o seu pedido para montar a simulação. Volte para a sua conta e
+            tente de novo.
+          </p>
+        ))}
+
       <Card className="mt-6 gap-6 p-6">
         {visibleQuestions(step, draft).map((q) => (
           <SurveyQuestionField
@@ -366,7 +387,7 @@ export function PesquisaView() {
             ? "Salvando..."
             : !step.block
               ? "Começar a pesquisa"
-              : isLastStep && SURVEY_IS_FINAL
+              : finishesSurvey
                 ? "Enviar respostas"
                 : "Seguir para o próximo bloco"}
         </Button>

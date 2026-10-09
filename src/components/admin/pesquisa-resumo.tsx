@@ -197,7 +197,7 @@ export function PesquisaResumo({ responses }: { responses: SurveyResponse[] }) {
   return (
     <div className="flex flex-col gap-10">
       <section aria-label="Indicadores">
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-7">
           <StatTile label="Respostas" value={kpis.total.toLocaleString("pt-BR")} />
           <StatTile
             label="Concluídas"
@@ -218,6 +218,11 @@ export function PesquisaResumo({ responses }: { responses: SurveyResponse[] }) {
             label="Resolve um problema real"
             value={kpis.problemFitMean !== null ? formatNumber(kpis.problemFitMean) : "—"}
             detail="média de 1 a 5"
+          />
+          <StatTile
+            label="Fariam o pedido"
+            value={kpis.wouldOrderPct !== null ? formatPct(kpis.wouldOrderPct) : "—"}
+            detail="“com certeza” ou “provavelmente”, na simulação"
           />
           <StatTile
             label="Querem seguir no piloto"
