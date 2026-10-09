@@ -1,3 +1,5 @@
+import { REGIONS } from "@/lib/survey/regions";
+
 /**
  * Cadastro da pesquisa de mercado. Incluir ou mudar uma pergunta é só editar
  * este arquivo: o formulário (/pesquisa), a tabela do admin e o CSV leem daqui.
@@ -72,6 +74,8 @@ export interface SurveyStep {
   footnote?: string;
   /** Respostas calculadas ao salvar a etapa (ex.: autorização registrada). */
   derive?: (answers: SurveyAnswers) => SurveyAnswers;
+  /** Chaves gravadas junto da etapa que não são perguntas (ex.: região detectada pelo CEP). */
+  extraKeys?: string[];
 }
 
 const single = (
@@ -131,6 +135,13 @@ export const PARTICIPATION_QUESTION: SingleQuestion = {
   ],
 };
 
+export const REGION_QUESTION: SingleQuestion = {
+  id: "region",
+  label: "Em qual região do Rio de Janeiro você mora?",
+  type: "single",
+  options: REGIONS.map((r) => ({ value: r, label: r })),
+};
+
 export const NO_STORE = "nenhuma";
 
 export const TESTIMONIAL_NAME_CHOICES: SurveyOption[] = [
@@ -153,6 +164,12 @@ export const SURVEY_CLOSING =
 
 /** Etapas na ordem do formulário (depois da confirmação do pedido). */
 export const SURVEY_STEPS: SurveyStep[] = [
+  {
+    // Tela de confirmação do 1º pedido, com a região (detectada pelo CEP).
+    id: "confirmacao",
+    questions: [REGION_QUESTION],
+    extraKeys: ["region_detected", "region_zip"],
+  },
   {
     id: "como-funciona",
     questions: [
@@ -552,6 +569,9 @@ export function stepPayload(step: SurveyStep, answers: SurveyAnswers): SurveyAns
   for (const q of step.questions) {
     const v = answers[q.id];
     payload[q.id] = isVisible(q, answers) && v !== undefined ? v : null;
+  }
+  for (const key of step.extraKeys ?? []) {
+    payload[key] = answers[key] === undefined ? null : answers[key];
   }
   return { ...payload, ...(step.derive?.(answers) ?? {}) };
 }

@@ -32,6 +32,7 @@ import {
   type SurveyOption,
 } from "@/lib/survey/questions";
 import { SurveyQuestionField } from "@/components/sections/survey-question-field";
+import { SurveyRegionStep } from "@/components/sections/survey-region-step";
 
 const HOW_IT_WORKS = [
   "Você compra suas cartas em uma ou mais lojas do Rio, como já faz hoje.",
@@ -105,6 +106,12 @@ export function PesquisaView() {
     setDraft(s?.answers ?? {});
   }
 
+  // Cria a resposta (se ainda não existe) e grava a região junto, no mesmo clique.
+  async function confirmFirstStep() {
+    if (!survey) await startSurvey();
+    await saveSurveyAnswers(stepPayload(SURVEY_STEPS[0], draft));
+  }
+
   async function run(action: () => Promise<void>) {
     setBusy(true);
     setError(null);
@@ -128,8 +135,16 @@ export function PesquisaView() {
     </p>
   );
 
-  // ---- Etapa 0: confirmar o 1º pedido (antes de existir a resposta) ----------
-  if (!survey) {
+  // ---- Etapa 0: confirmar o 1º pedido e a região -----------------------------
+  // Vale também para quem já começou antes de a região existir (resposta criada,
+  // mas sem região): volta aqui, responde e segue de onde parou.
+  // Quem já concluiu a pesquisa não volta à região: vê só o agradecimento.
+  const pendingIndex = !survey
+    ? 0
+    : survey.completedAt
+      ? SURVEY_STEPS.length
+      : firstPendingStep(survey.answers);
+  if (pendingIndex === 0) {
     if (!firstOrder) {
       return (
         <Shell>
@@ -205,12 +220,24 @@ export function PesquisaView() {
           </div>
         </Card>
 
+        <SurveyRegionStep
+          address={user?.address}
+          value={typeof draft.region === "string" ? draft.region : undefined}
+          onChange={(region) => setDraft((d) => ({ ...d, region }))}
+          onDetected={(detected, zip) =>
+            setDraft((d) => ({ ...d, region_detected: detected, region_zip: zip }))
+          }
+        />
+
         <Card className="mt-6 gap-4 p-6">
           <p className="font-semibold text-slate-900">
             Está certo? Esse foi seu primeiro pedido?
           </p>
           <div className="flex flex-col gap-2 sm:flex-row-reverse sm:justify-start">
-            <Button disabled={busy} onClick={() => void run(startSurvey)}>
+            <Button
+              disabled={busy || !isStepAnswered(SURVEY_STEPS[0], draft)}
+              onClick={() => void run(confirmFirstStep)}
+            >
               {busy ? "Salvando..." : "Sim, está certo. Seguir com a pesquisa"}
             </Button>
             <Button variant="outline" asChild>
@@ -224,7 +251,7 @@ export function PesquisaView() {
   }
 
   // ---- Etapas com perguntas ------------------------------------------------
-  const stepIndex = firstPendingStep(survey.answers);
+  const stepIndex = pendingIndex;
   const step = SURVEY_STEPS[stepIndex];
 
   if (!step) {

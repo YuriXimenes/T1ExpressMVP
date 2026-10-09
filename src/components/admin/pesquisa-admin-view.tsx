@@ -37,12 +37,33 @@ const COLUMNS: { label: string; value: (r: SurveyResponse) => string; wide?: boo
     { label: "Loja de retirada", value: (r) => r.pickupStore },
     { label: "Total dos itens", value: (r) => formatBRL(r.itemsTotalBRL) },
     { label: "Valor pago", value: (r) => formatBRL(r.amountPaidBRL) },
-    ...SURVEY_QUESTIONS.map((q) => ({
-      // Cabeçalho = pergunta completa, com o número do formulário quando tem.
-      label: `${q.number !== undefined ? `${q.number}. ` : ""}${q.label}`,
-      value: (r: SurveyResponse) => answerLabel(q, r.answers[q.id]),
-      wide: true,
-    })),
+    ...SURVEY_QUESTIONS.flatMap((q) => {
+      const column = {
+        // Cabeçalho = pergunta completa, com o número do formulário quando tem.
+        label: `${q.number !== undefined ? `${q.number}. ` : ""}${q.label}`,
+        value: (r: SurveyResponse) => answerLabel(q, r.answers[q.id]),
+        wide: true,
+      };
+      // Logo depois da região: o que o CEP identificou e o CEP usado, para ver
+      // quantas pessoas corrigiram a região sugerida.
+      return q.id === "region"
+        ? [
+            column,
+            {
+              label: "Região identificada pelo CEP",
+              value: (r: SurveyResponse) =>
+                typeof r.answers.region_detected === "string"
+                  ? r.answers.region_detected
+                  : "",
+            },
+            {
+              label: "CEP usado na região",
+              value: (r: SurveyResponse) =>
+                typeof r.answers.region_zip === "string" ? r.answers.region_zip : "",
+            },
+          ]
+        : [column];
+    }),
     {
       label: "Autorizou publicar a mensagem",
       value: (r) =>
