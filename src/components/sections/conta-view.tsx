@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AccountSettingsForm } from "@/components/sections/account-settings-form";
 import { MockOrderCard } from "@/components/sections/mock-order-card";
+import { SurveyBanner } from "@/components/sections/survey-banner";
 import { useAuth } from "@/lib/auth";
 import { useOrders, OrderError } from "@/lib/orders/store";
 import { cn } from "@/lib/utils";
@@ -83,6 +84,9 @@ export function ContaView() {
         {user ? `Olá, ${user.name}` : "Minha conta"}
       </h1>
       <p className="mt-1 text-slate-600">Acompanhe seus pedidos e ajuste seus dados.</p>
+
+      {/* Convite da pesquisa: depois do 1º pedido, em todas as abas. `answered` vem da tabela de respostas no próximo passo. */}
+      {!isLoading && orders.length > 0 && <SurveyBanner answered={false} />}
 
       <Tabs
         value={tab}
