@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { ChevronDown, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useCatalog } from "@/lib/catalog/provider";
 import type { SurveyResponse } from "@/lib/survey/api";
@@ -25,6 +27,7 @@ import {
   formatNumber,
   formatPct,
 } from "@/components/admin/survey-charts";
+import { cn } from "@/lib/utils";
 
 const NPS_COLOR = {
   promoter: CHART_COLORS.promoter,
@@ -79,6 +82,16 @@ export function PesquisaResumo({ responses }: { responses: SurveyResponse[] }) {
   const { stores } = useCatalog();
   const storeNames = useMemo(() => stores.map((s) => s.name), [stores]);
   const sections = useMemo(() => surveySections(), []);
+  // Seções recolhidas (todas abertas por padrão); o resumo do topo não recolhe.
+  const [closed, setClosed] = useState<Set<string>>(new Set());
+  const allOpen = closed.size === 0;
+  const allClosed = closed.size === sections.length;
+  const toggle = (id: string) =>
+    setClosed((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
   const kpis = useMemo(() => summarizeKpis(responses), [responses]);
   const region = useMemo(() => summarizeRegionAccuracy(responses), [responses]);
   const testimonials = useMemo(() => summarizeTestimonials(responses), [responses]);
@@ -232,25 +245,67 @@ export function PesquisaResumo({ responses }: { responses: SurveyResponse[] }) {
         </div>
       </section>
 
-      {sections.map((section) => (
-        <section
-          key={section.id}
-          aria-labelledby={`sec-${section.id}`}
-          className="flex flex-col gap-4"
-        >
-          <div>
-            <h2 id={`sec-${section.id}`} className="text-lg font-semibold text-slate-900">
-              {section.title}
-            </h2>
-            {section.subtitle && (
-              <p className="mt-0.5 text-sm text-slate-500">{section.subtitle}</p>
+      <div className="-mb-6 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-slate-500">
+          Resultados por bloco, na ordem do formulário
+        </p>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setClosed(new Set())}
+            disabled={allOpen}
+          >
+            <ChevronsUpDown className="h-4 w-4" aria-hidden="true" />
+            Expandir tudo
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setClosed(new Set(sections.map((s) => s.id)))}
+            disabled={allClosed}
+          >
+            <ChevronsDownUp className="h-4 w-4" aria-hidden="true" />
+            Reduzir tudo
+          </Button>
+        </div>
+      </div>
+
+      {sections.map((section) => {
+        const open = !closed.has(section.id);
+        return (
+          <section key={section.id} className="flex flex-col gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">
+                <button
+                  type="button"
+                  onClick={() => toggle(section.id)}
+                  aria-expanded={open}
+                  aria-controls={`panel-${section.id}`}
+                  className="group -mx-2 flex w-[calc(100%+1rem)] items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:outline-none"
+                >
+                  <span className="min-w-0">{section.title}</span>
+                  <ChevronDown
+                    className={cn(
+                      "h-5 w-5 shrink-0 text-slate-400 transition-transform group-hover:text-slate-600",
+                      open && "rotate-180",
+                    )}
+                    aria-hidden="true"
+                  />
+                </button>
+              </h2>
+              {open && section.subtitle && (
+                <p className="mt-0.5 text-sm text-slate-500">{section.subtitle}</p>
+              )}
+            </div>
+            {open && (
+              <div id={`panel-${section.id}`} className="grid gap-4 lg:grid-cols-2">
+                {section.questions.map(renderQuestion)}
+              </div>
             )}
-          </div>
-          <div className="grid gap-4 lg:grid-cols-2">
-            {section.questions.map(renderQuestion)}
-          </div>
-        </section>
-      ))}
+          </section>
+        );
+      })}
     </div>
   );
 }
