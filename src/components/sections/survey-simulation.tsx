@@ -5,6 +5,8 @@ import Image from "next/image";
 import { CalendarDays, MapPin, PackageCheck, Receipt, Store, Truck } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { useCatalog } from "@/lib/catalog/provider";
+import { simulateFreight } from "@/lib/data/freight-simulation";
+import type { CompetitorQuote } from "@/lib/types/freight";
 import { formatOrderMoment, formatScheduleDate } from "@/lib/operating-calendar";
 import {
   SIMULATION_PRICE,
@@ -57,17 +59,33 @@ export function SurveySimulation({
   order: { originStoreIds: string[]; destinationStoreId: string; createdAt: string };
   onReady: (answers: ReturnType<typeof simulationAnswers>) => void;
 }) {
-  const { coletaPartners, stores } = useCatalog();
+  const { coletaPartners, stores, freightRoutes, correiosFlatRateBRL, pricing } =
+    useCatalog();
 
   // A simulação depende só de quais lojas e de quando o pedido foi feito.
   const storesKey = order.originStoreIds.join("|");
+  const destinationId = order.destinationStoreId;
+  // Quanto o mesmo trajeto custaria em Uber, Loggi e Correios: a mesma conta do
+  // simulador de frete, com as rotas do catálogo. Sem rota cadastrada para
+  // alguma loja, não há como estimar: a seção some e nada é gravado.
+  const competitors = useMemo<CompetitorQuote[]>(() => {
+    try {
+      return simulateFreight(
+        { originStoreIds: storesKey.split("|"), destinationStoreId: destinationId },
+        { stores, routes: freightRoutes, correiosFlatRateBRL, pricing },
+      ).competitors;
+    } catch {
+      return [];
+    }
+  }, [storesKey, destinationId, stores, freightRoutes, correiosFlatRateBRL, pricing]);
+
   const sim = useMemo(
     () =>
-      buildSimulation({
-        originStoreIds: storesKey.split("|"),
-        createdAt: order.createdAt,
-      }),
-    [storesKey, order.createdAt],
+      buildSimulation(
+        { originStoreIds: storesKey.split("|"), createdAt: order.createdAt },
+        competitors,
+      ),
+    [storesKey, order.createdAt, competitors],
   );
 
   const callback = useRef(onReady);
@@ -146,6 +164,33 @@ export function SurveySimulation({
           O valor inclui a coleta nas lojas de origem e a consolidação para retirada no T1
           Point escolhido. O valor das cartas não está incluído.
         </p>
+        {competitors.length > 0 && (
+          <div className="mt-3 border-t border-slate-200 pt-3">
+            <p className="text-xs font-semibold text-slate-600">
+              Para comparar: quanto custaria o mesmo trajeto em outros serviços
+            </p>
+            <ul className="mt-2 flex flex-col gap-1.5">
+              {competitors.map((c) => (
+                <li
+                  key={c.carrier}
+                  className="flex items-baseline justify-between gap-3 text-sm"
+                >
+                  <span className="text-slate-600">
+                    {c.label}{" "}
+                    <span className="text-xs text-slate-400">({c.etaLabel})</span>
+                  </span>
+                  <span className="font-semibold whitespace-nowrap text-slate-900 tabular-nums">
+                    {brl(c.totalBRL)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-[11px] leading-snug text-slate-400">
+              Valores estimados para {sim.stores} {sim.stores === 1 ? "loja" : "lojas"}{" "}
+              até a loja de retirada.
+            </p>
+          </div>
+        )}
       </Card>
 
       <Card className="gap-4 p-5 sm:p-6">
