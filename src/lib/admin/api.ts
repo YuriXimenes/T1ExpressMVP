@@ -5,6 +5,12 @@ import { STORE_LOGO_BUCKET } from "@/lib/store-logo";
 import type { Pricing } from "@/lib/pricing";
 import { fetchProfile } from "@/lib/account";
 import type { MockUser } from "@/lib/auth";
+import {
+  mapSurveyResponse,
+  SURVEY_SELECT,
+  type SurveyResponse,
+  type SurveyResponseRow,
+} from "@/lib/survey/api";
 import type { CompetitorQuote, FreightQuoteResult } from "@/lib/types/freight";
 import type {
   DeliveryStage,
@@ -99,6 +105,19 @@ export async function revalidateCatalog(): Promise<void> {
     const body = (await response.json().catch(() => null)) as { error?: string } | null;
     throw new AdminError(body?.error ?? "Não foi possível atualizar o catálogo.");
   }
+}
+
+// --- Pesquisa ----------------------------------------------------------
+
+/** Todas as respostas da pesquisa, mais recentes primeiro. Só admin (RLS). */
+export async function fetchSurveyResponses(): Promise<SurveyResponse[]> {
+  const { data, error } = await createBrowserClient()
+    .from("survey_responses" as never)
+    .select(SURVEY_SELECT)
+    .order("started_at", { ascending: false })
+    .returns<SurveyResponseRow[]>();
+  if (error) throw new AdminError("Não foi possível carregar as respostas.");
+  return (data ?? []).map(mapSurveyResponse);
 }
 
 // --- Usuários ----------------------------------------------------------
