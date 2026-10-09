@@ -14,6 +14,8 @@ import {
   testimonialDisplayName,
 } from "@/lib/survey/questions";
 import { cn } from "@/lib/utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PesquisaResumo } from "@/components/admin/pesquisa-resumo";
 
 type Filter = "todas" | "concluidas" | "andamento";
 
@@ -171,61 +173,73 @@ export function PesquisaAdminView() {
       {!responses && !error && <p className="text-sm text-slate-500">Carregando...</p>}
 
       {responses && (
-        <div className="max-h-[70vh] overflow-auto rounded-xl border border-slate-200">
-          <table className="w-max min-w-full text-sm">
-            <thead className="sticky top-0 z-10 bg-slate-50 text-left text-xs text-slate-500">
-              <tr>
-                {COLUMNS.map((c) => (
-                  <th
-                    key={c.label}
-                    className={cn(
-                      "px-4 py-2 align-bottom font-medium",
-                      c.wide && "min-w-56",
-                    )}
-                  >
-                    {c.label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={COLUMNS.length}
-                    className="px-4 py-8 text-center text-slate-400"
-                  >
-                    Nenhuma resposta ainda.
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((r) => (
-                  <tr key={r.id} className="border-t border-slate-100 align-top">
-                    {COLUMNS.map((c, i) => (
-                      <td
+        <Tabs defaultValue="resumo">
+          <TabsList>
+            <TabsTrigger value="resumo">Resumo</TabsTrigger>
+            <TabsTrigger value="respostas">Respostas</TabsTrigger>
+          </TabsList>
+          {/* O filtro acima vale para as duas abas. */}
+          <TabsContent value="resumo" className="pt-6">
+            <PesquisaResumo responses={filtered} />
+          </TabsContent>
+          <TabsContent value="respostas" className="pt-4">
+            <div className="max-h-[70vh] overflow-auto rounded-xl border border-slate-200">
+              <table className="w-max min-w-full text-sm">
+                <thead className="sticky top-0 z-10 bg-slate-50 text-left text-xs text-slate-500">
+                  <tr>
+                    {COLUMNS.map((c) => (
+                      <th
                         key={c.label}
                         className={cn(
-                          "px-4 py-3 text-slate-700",
-                          c.wide
-                            ? "max-w-80 min-w-56 whitespace-normal"
-                            : "whitespace-nowrap",
+                          "px-4 py-2 align-bottom font-medium",
+                          c.wide && "min-w-56",
                         )}
                       >
-                        {i === 0 ? (
-                          <Badge variant={r.completedAt ? "default" : "secondary"}>
-                            {c.value(r)}
-                          </Badge>
-                        ) : (
-                          c.value(r) || <span className="text-slate-300">—</span>
-                        )}
-                      </td>
+                        {c.label}
+                      </th>
                     ))}
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody>
+                  {filtered.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={COLUMNS.length}
+                        className="px-4 py-8 text-center text-slate-400"
+                      >
+                        Nenhuma resposta ainda.
+                      </td>
+                    </tr>
+                  ) : (
+                    filtered.map((r) => (
+                      <tr key={r.id} className="border-t border-slate-100 align-top">
+                        {COLUMNS.map((c, i) => (
+                          <td
+                            key={c.label}
+                            className={cn(
+                              "px-4 py-3 text-slate-700",
+                              c.wide
+                                ? "max-w-80 min-w-56 whitespace-normal"
+                                : "whitespace-nowrap",
+                            )}
+                          >
+                            {i === 0 ? (
+                              <Badge variant={r.completedAt ? "default" : "secondary"}>
+                                {c.value(r)}
+                              </Badge>
+                            ) : (
+                              c.value(r) || <span className="text-slate-300">—</span>
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </TabsContent>
+        </Tabs>
       )}
     </div>
   );
