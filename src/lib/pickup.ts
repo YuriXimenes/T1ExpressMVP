@@ -15,6 +15,8 @@ export interface PickupLookup {
   state?: PickupState;
   lockedUntil?: string;
   attemptsLeft?: number;
+  /** Quem lê é o entregador desta entrega, com a viagem em andamento (0017). */
+  driverCanDeliver?: boolean;
 }
 
 export interface PickupResult {

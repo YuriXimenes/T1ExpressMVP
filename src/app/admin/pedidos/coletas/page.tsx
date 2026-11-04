@@ -1,11 +1,8 @@
 import type { Metadata } from "next";
-import { soonItem } from "@/components/admin/shell/nav";
-import { SoonPage } from "@/components/admin/soon-page";
+import { PlanejamentoView } from "@/components/admin/rotas/planejamento-view";
 
-const HREF = "/admin/pedidos/coletas";
+export const metadata: Metadata = { title: "Planejamento" };
 
-export const metadata: Metadata = { title: soonItem(HREF).label };
-
-export default function Page() {
-  return <SoonPage href={HREF} />;
+export default function AdminPlanejamentoPage() {
+  return <PlanejamentoView />;
 }

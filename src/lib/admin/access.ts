@@ -57,7 +57,7 @@ export const STAFF_AREAS: {
     id: "coletas",
     label: "Coletas e rotas",
     group: "Gestão de pedidos",
-    hrefs: ["/admin/pedidos/coletas", "/admin/pedidos/rotas"],
+    hrefs: ["/admin/pedidos/coletas", "/admin/pedidos/rotas", "/admin/pedidos/veiculos"],
   },
   {
     id: "pontos",

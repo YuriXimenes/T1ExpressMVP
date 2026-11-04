@@ -5,10 +5,12 @@ import {
   Ban,
   CheckCircle2,
   CircleDollarSign,
+  CircleSlash,
   ClipboardCheck,
   FilePlus2,
   MessageSquare,
   PackagePlus,
+  Route,
   ShieldCheck,
   Store,
   Truck,
@@ -37,6 +39,8 @@ export const EVENT_ICONS: Record<OrderEventKind, LucideIcon> = {
   ticket_reopened: MessageSquare,
   items_checked: ClipboardCheck,
   custody: Truck,
+  route: Route,
+  stop_failed: CircleSlash,
 };
 
 export function formatEventTime(iso: string): string {
