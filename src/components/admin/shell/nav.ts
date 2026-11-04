@@ -3,6 +3,7 @@ import {
   BarChart3,
   Building2,
   CalendarClock,
+  Car,
   ClipboardList,
   FileSearch,
   Activity,
@@ -64,37 +65,9 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { href: "/admin/pedidos", label: "Pedidos", icon: Package },
       { href: "/admin/pedidos/historico", label: "Histórico", icon: History },
       { href: "/admin/pedidos/atividades", label: "Atividades", icon: Activity },
-      {
-        href: "/admin/pedidos/coletas",
-        label: "Planejamento de coletas",
-        icon: CalendarClock,
-        soon: {
-          delivery: 5,
-          summary: "Organizar o que precisa ser coletado em cada loja e por quem.",
-          features: [
-            "Pedidos agrupados por loja e por prioridade, com filtros por região e loja",
-            "Atribuir entregador e definir a ordem das paradas",
-            "Registrar loja fechada ou indisponível",
-            "Sugestões simples de agrupamento de rotas",
-          ],
-        },
-      },
-      {
-        href: "/admin/pedidos/rotas",
-        label: "Rotas",
-        icon: Route,
-        soon: {
-          delivery: 5,
-          summary: "Rotas de coleta e de entrega com acompanhamento parada a parada.",
-          features: [
-            "Rota com tipo, data, entregador, paradas e pedidos",
-            "Horários previstos e reais de início e fim",
-            "Status por rota e por parada (aguardando, em deslocamento, atendida, não realizada, parcial)",
-            "Custo previsto e real com o preço da gasolina do dia",
-            "Área do entregador no celular: fotos, comprovantes e motivos",
-          ],
-        },
-      },
+      { href: "/admin/pedidos/coletas", label: "Planejamento", icon: CalendarClock },
+      { href: "/admin/pedidos/rotas", label: "Rotas e viagens", icon: Route },
+      { href: "/admin/pedidos/veiculos", label: "Veículos e combustível", icon: Car },
       {
         href: "/admin/pedidos/pontos",
         label: "Pontos de retirada",

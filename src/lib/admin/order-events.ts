@@ -16,10 +16,12 @@ export type OrderEventKind =
   | "ticket_resolved"
   | "ticket_reopened"
   | "items_checked"
-  | "custody";
+  | "custody"
+  | "route"
+  | "stop_failed";
 
 /** "store": lojista confirmando a retirada pelo QR do pacote. */
-export type OrderEventActorKind = "customer" | "admin" | "store" | "system";
+export type OrderEventActorKind = "customer" | "admin" | "store" | "driver" | "system";
 
 export interface OrderEvent {
   id: string;
@@ -51,12 +53,15 @@ export const EVENT_KIND_LABELS: Record<OrderEventKind, string> = {
   ticket_reopened: "Chamado reaberto",
   items_checked: "Conferência salva",
   custody: "Custódia",
+  route: "Rota",
+  stop_failed: "Parada não realizada",
 };
 
 export const ACTOR_KIND_LABELS: Record<OrderEventActorKind, string> = {
   customer: "Cliente",
   admin: "Admin",
   store: "Loja de retirada",
+  driver: "Entregador",
   system: "Sistema",
 };
 
@@ -166,6 +171,27 @@ export function describeEvent(
         ),
       };
     }
+    case "route":
+      return {
+        title: event.toValue === "removido" ? "Saiu de uma rota" : "Entrou numa rota",
+        detail: join(
+          d.routeKind === "coleta"
+            ? "Coleta"
+            : d.routeKind === "entrega"
+              ? "Entrega"
+              : undefined,
+          typeof d.day === "string" &&
+            new Date(`${d.day}T12:00:00`).toLocaleDateString("pt-BR"),
+          typeof d.storeCode === "string" && storeName(d.storeCode),
+          d.cancelled === true && "rota cancelada",
+        ),
+      };
+    case "stop_failed":
+      return {
+        title:
+          event.toValue === "entrega" ? "Entrega não realizada" : "Coleta não realizada",
+        detail: join(typeof d.storeCode === "string" && storeName(d.storeCode)),
+      };
     case "custody":
       return {
         title: custodyLabel(event.toValue ?? ""),

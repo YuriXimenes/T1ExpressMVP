@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, PackageX } from "lucide-react";
+import { CheckCircle2, PackageX, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import {
   lookupPickup,
   type PickupLookup,
 } from "@/lib/pickup";
+import { DriverError, currentPosition, deliverByToken } from "@/lib/driver/api";
 
 const STATE_MESSAGES: Record<string, string> = {
   not_ready:
@@ -28,6 +29,8 @@ export function PickupConfirmView({ token }: { token: string }) {
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [delivered, setDelivered] = useState(false);
+  const [contact, setContact] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -79,6 +82,25 @@ export function PickupConfirmView({ token }: { token: string }) {
     }
   }
 
+  // Entregador da viagem: confirma que deixou o pacote no ponto de retirada.
+  async function deliver(event: React.FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setFeedback(null);
+    try {
+      await deliverByToken(token, contact.trim() || undefined, await currentPosition());
+      setDelivered(true);
+    } catch (err) {
+      setFeedback(
+        err instanceof DriverError
+          ? err.message
+          : "Não foi possível confirmar a entrega.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
   let body: React.ReactNode;
   if (loadError) {
     body = <p className="text-sm text-red-600">{loadError}</p>;
@@ -90,6 +112,46 @@ export function PickupConfirmView({ token }: { token: string }) {
         <PackageX className="h-10 w-10 text-slate-400" aria-hidden="true" />
         <p className="text-slate-700">Este QR não é de um pacote da T1 Express.</p>
       </div>
+    );
+  } else if (delivered) {
+    body = (
+      <div className="flex flex-col items-center gap-2 text-center">
+        <CheckCircle2 className="h-12 w-12 text-emerald-600" aria-hidden="true" />
+        <p className="text-lg font-semibold text-slate-900">Entrega confirmada</p>
+        <p className="text-sm text-slate-600">
+          Pedido #{info.orderCode} deixado em {info.storeName}. Agora ele aguarda a
+          retirada pelo cliente, com o código.
+        </p>
+      </div>
+    );
+  } else if (info.driverCanDeliver) {
+    body = (
+      <form onSubmit={(e) => void deliver(e)} className="flex flex-col gap-4">
+        <div className="flex items-start gap-3">
+          <Truck className="text-brand-700 mt-1 h-6 w-6 shrink-0" aria-hidden="true" />
+          <div>
+            <p className="text-2xl font-bold text-slate-900">Pedido #{info.orderCode}</p>
+            <p className="text-sm text-slate-600">Entrega em {info.storeName}</p>
+          </div>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="deliver-contact">Quem recebeu no ponto (opcional)</Label>
+          <Input
+            id="deliver-contact"
+            maxLength={120}
+            value={contact}
+            onChange={(e) => setContact(e.target.value)}
+          />
+        </div>
+        {feedback && (
+          <p role="alert" className="text-sm text-red-600">
+            {feedback}
+          </p>
+        )}
+        <Button type="submit" size="lg" disabled={busy}>
+          {busy ? "Confirmando..." : "Confirmar entrega neste ponto"}
+        </Button>
+      </form>
     );
   } else if (confirmed) {
     body = (

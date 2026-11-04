@@ -12,6 +12,7 @@ import { OrderTimeline } from "@/components/admin/pedidos/order-timeline";
 import { ConferenciaCard } from "@/components/admin/pedidos/conferencia-card";
 import { CustodyCard } from "@/components/admin/pedidos/custody-card";
 import { LabelCard } from "@/components/admin/pedidos/label-card";
+import { OrderRoutesCard } from "@/components/admin/pedidos/order-routes-card";
 import { useCatalog } from "@/lib/catalog/provider";
 import { getOrderStatusLabel } from "@/lib/order-helpers";
 import { allowedTargets } from "@/lib/admin/order-moves";
@@ -344,6 +345,7 @@ export function PedidoAdminDetailView({ orderId }: { orderId: string }) {
                 handling={handling}
                 onChanged={refreshAfterHandling}
               />
+              <OrderRoutesCard orderId={order.id} refreshKey={handling} />
             </>
           )}
           <OrderItemsBreakdown

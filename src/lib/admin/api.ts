@@ -21,6 +21,7 @@ import type {
 } from "@/lib/admin/order-events";
 import { addDays } from "@/lib/operating-calendar";
 import { resizeImage } from "@/lib/photo-resize";
+import { stopReasonLabel } from "@/lib/routes/planning";
 import type {
   CustodyAction,
   CustodyEvent,
@@ -856,7 +857,11 @@ function mapOrderEvent(row: OrderEventRow): OrderEvent {
     kind: row.kind,
     fromValue: row.from_value ?? undefined,
     toValue: row.to_value ?? undefined,
-    reason: row.reason ?? undefined,
+    // Parada não realizada guarda o código do motivo; a tela mostra o texto.
+    reason:
+      row.kind === "stop_failed" && row.reason
+        ? stopReasonLabel(row.reason)
+        : (row.reason ?? undefined),
     details: row.details ?? {},
     backfilled: row.backfilled,
   };
