@@ -1,43 +1,48 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  Package,
-  Users,
-  ClipboardList,
-  Mail,
-  Store,
-  ShieldCheck,
-  type LucideIcon,
-} from "lucide-react";
+import { Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/lib/auth";
 import { createBrowserClient } from "@/lib/supabase/client";
-import { checkIsAdmin } from "@/lib/admin/api";
+import { fetchMyAccess } from "@/lib/admin/people-api";
+import { areaForPath, can, type StaffAccess } from "@/lib/admin/access";
+import { AccessProvider } from "@/lib/admin/access-provider";
+import { activeNavItem } from "@/components/admin/shell/nav";
+import { AdminSidebar } from "@/components/admin/shell/sidebar";
+import { NotificationsBell } from "@/components/admin/shell/notifications-bell";
+import { AdminUserMenu } from "@/components/admin/shell/user-menu";
 import { cn } from "@/lib/utils";
-
-const NAV_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
-  { href: "/admin/pedidos", label: "Pedidos", icon: Package },
-  { href: "/admin/usuarios", label: "Usuários", icon: Users },
-  { href: "/admin/pesquisa", label: "Pesquisa", icon: ClipboardList },
-  { href: "/admin/formularios", label: "Formulários", icon: Mail },
-  { href: "/admin/catalogo", label: "Catálogo", icon: Store },
-  { href: "/admin/administradores", label: "Administradores", icon: ShieldCheck },
-];
 
 type GuardStatus = "checking" | "allowed" | "denied";
 
+const COLLAPSED_KEY = "t1-admin-sidebar-collapsed";
+
+function readCollapsed(): boolean {
+  try {
+    return typeof window !== "undefined" && localStorage.getItem(COLLAPSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 /**
- * Guarda de acesso do painel: confere se o usuário logado está na tabela
- * `admins` (via RLS, sem RPC nenhuma). Sem sessão ou sem ser admin, manda
- * para a home sem avisar que /admin existe.
+ * Moldura do backoffice: tela cheia, menu lateral por categoria e barra
+ * superior. Antes de mostrar qualquer coisa, carrega o acesso de quem está
+ * logado (`my_staff_access`); sem sessão, sem acesso ou inativo, manda para a
+ * home sem avisar que /admin existe. O menu e as telas seguem o perfil.
  */
 export function AdminShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { isReady, isLoggedIn } = useAuth();
   const [status, setStatus] = useState<GuardStatus>("checking");
+  const [access, setAccess] = useState<StaffAccess | null>(null);
+  // Nada da moldura é renderizado no servidor (a guarda começa em "checking"),
+  // então ler o localStorage já no estado inicial não causa diferença de hidratação.
+  const [collapsed, setCollapsed] = useState(readCollapsed);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     if (!isReady) return;
@@ -56,8 +61,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
           if (!cancelled) setStatus("denied");
           return;
         }
-        const ok = await checkIsAdmin(userId);
-        if (!cancelled) setStatus(ok ? "allowed" : "denied");
+        const mine = await fetchMyAccess().catch(() => null);
+        if (cancelled) return;
+        setAccess(mine);
+        setStatus(mine?.status === "ativo" ? "allowed" : "denied");
       })();
     });
     return () => {
@@ -69,54 +76,137 @@ export function AdminShell({ children }: { children: ReactNode }) {
     if (status === "denied") router.replace("/");
   }, [status, router]);
 
-  if (status !== "allowed") {
+  function toggleCollapsed() {
+    setCollapsed((prev) => {
+      try {
+        localStorage.setItem(COLLAPSED_KEY, prev ? "0" : "1");
+      } catch {
+        // Sem localStorage (aba anônima etc.): só não lembra a preferência.
+      }
+      return !prev;
+    });
+  }
+
+  if (status !== "allowed" || !access) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
+      <div className="flex min-h-dvh items-center justify-center bg-slate-50">
         <p className="text-sm text-slate-500">Carregando...</p>
       </div>
     );
   }
 
+  const active = activeNavItem(pathname);
+  const isDetail = !!active && pathname !== active.item.href;
+  const area = areaForPath(pathname);
+  const blocked = !!area && !can(access, area, "view");
+
   return (
-    // min-w-0 em cada nível + nada de largura mínima fixa: em telas estreitas o
-    // menu empilha em cima (linha horizontal com rolagem própria) em vez de
-    // forçar a página inteira (cabeçalho do site incluso) a ficar mais larga
-    // que a tela — era isso que fazia o layout "pular" de tamanho entre telas.
-    <div className="mx-auto flex w-full max-w-7xl min-w-0 flex-col md:min-h-screen md:flex-row">
-      <aside className="flex w-full min-w-0 shrink-0 flex-col gap-1 border-b border-slate-200 px-3 py-3 md:w-56 md:border-r md:border-b-0 md:py-6">
-        <p className="px-3 pb-2 text-sm font-semibold text-slate-900 md:pb-4">
-          T1 Express · Admin
-        </p>
-        <div className="-mx-3 flex min-w-0 gap-1 overflow-x-auto px-3 pb-1 md:mx-0 md:flex-col md:overflow-visible md:px-0 md:pb-0">
-          {NAV_ITEMS.map((item) => {
-            const active = pathname === item.href || pathname.startsWith(item.href + "/");
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors",
-                  active
-                    ? "bg-brand-50 text-brand-700"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
-                )}
-              >
-                <Icon className="h-4 w-4" aria-hidden="true" />
-                {item.label}
-              </Link>
-            );
-          })}
-        </div>
-        <div className="hidden pt-6 md:mt-auto md:block md:px-3">
-          <Link href="/" className="text-xs text-slate-400 hover:text-slate-600">
-            Voltar ao site
-          </Link>
-        </div>
+    <div className="flex h-dvh overflow-clip bg-slate-50 print:block print:h-auto print:overflow-visible print:bg-white">
+      <aside
+        className={cn(
+          "hidden shrink-0 border-r border-slate-800 bg-slate-900 transition-[width] duration-200 lg:block print:hidden",
+          collapsed ? "w-16" : "w-64",
+        )}
+      >
+        <AdminSidebar pathname={pathname} collapsed={collapsed} access={access} />
       </aside>
-      <main className="min-w-0 flex-1 overflow-x-hidden px-4 py-6 md:px-8 md:py-8">
-        {children}
-      </main>
+
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <SheetContent
+          side="left"
+          className="w-72 border-slate-800 bg-slate-900 p-0 text-slate-300 sm:max-w-72"
+          showCloseButton={false}
+        >
+          <SheetTitle className="sr-only">Menu do backoffice</SheetTitle>
+          <AdminSidebar
+            pathname={pathname}
+            collapsed={false}
+            access={access}
+            onNavigate={() => setMobileOpen(false)}
+          />
+        </SheetContent>
+      </Sheet>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-3 sm:px-4 print:hidden">
+          <button
+            type="button"
+            onClick={() => setMobileOpen(true)}
+            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 lg:hidden"
+            aria-label="Abrir menu"
+          >
+            <Menu className="h-5 w-5" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            className="hidden rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 lg:block"
+            aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+            title={collapsed ? "Expandir menu" : "Recolher menu"}
+          >
+            {collapsed ? (
+              <PanelLeftOpen className="h-5 w-5" aria-hidden="true" />
+            ) : (
+              <PanelLeftClose className="h-5 w-5" aria-hidden="true" />
+            )}
+          </button>
+
+          <nav aria-label="Você está em" className="min-w-0 flex-1">
+            {active && (
+              <ol className="flex min-w-0 items-center gap-1.5 text-sm">
+                <li className="hidden shrink-0 text-slate-400 sm:block">
+                  {active.group.label}
+                </li>
+                <li className="hidden text-slate-300 sm:block" aria-hidden="true">
+                  ›
+                </li>
+                <li
+                  className={cn(
+                    "truncate",
+                    isDetail ? "text-slate-400" : "font-medium text-slate-900",
+                  )}
+                >
+                  {active.item.label}
+                </li>
+                {isDetail && (
+                  <>
+                    <li className="text-slate-300" aria-hidden="true">
+                      ›
+                    </li>
+                    <li className="truncate font-medium text-slate-900">Detalhe</li>
+                  </>
+                )}
+              </ol>
+            )}
+          </nav>
+
+          <NotificationsBell />
+          <AdminUserMenu />
+        </header>
+
+        <main
+          id="main-content"
+          className="relative min-w-0 flex-1 overflow-x-hidden overflow-y-auto print:overflow-visible"
+        >
+          <div className="mx-auto w-full max-w-[1400px] px-4 py-6 md:px-8 md:py-8 print:m-0 print:max-w-none print:p-0">
+            <AccessProvider access={access}>
+              {blocked ? (
+                <div className="mx-auto max-w-md py-16 text-center">
+                  <p className="text-lg font-semibold text-slate-900">
+                    Sem acesso a esta área
+                  </p>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Seu perfil ({access.roleName}) não tem permissão para ver esta tela.
+                    Fale com um Administrador se precisar.
+                  </p>
+                </div>
+              ) : (
+                children
+              )}
+            </AccessProvider>
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

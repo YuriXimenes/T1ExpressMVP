@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { AdministradoresAdminView } from "@/components/admin/administradores-admin-view";
+import { AcessosView } from "@/components/admin/pessoas/acessos-view";
 
-export const metadata: Metadata = { title: "Administradores" };
+export const metadata: Metadata = { title: "Usuários do admin" };
 
-export default function AdminAdministradoresPage() {
-  return <AdministradoresAdminView />;
+export default function AdminAcessosPage() {
+  return <AcessosView />;
 }

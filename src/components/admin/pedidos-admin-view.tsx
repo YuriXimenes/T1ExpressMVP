@@ -1,205 +1,236 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { KanbanSquare, Table2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { PeriodFilter, usePeriodFilter } from "@/components/admin/period-filter";
+import { OrdersKanban } from "@/components/admin/pedidos/kanban";
+import { OrdersTable } from "@/components/admin/pedidos/table";
+import { useOrderMover } from "@/components/admin/pedidos/move-order";
+import { useCatalog } from "@/lib/catalog/provider";
 import { AdminError, fetchAdminOrders, type AdminOrderSummary } from "@/lib/admin/api";
+import { inPeriod } from "@/lib/admin/dashboard";
 import { cn } from "@/lib/utils";
 
-function formatBRL(value: number) {
-  return `R$ ${value.toFixed(2).replace(".", ",")}`;
-}
+type View = "kanban" | "tabela";
+const VIEW_KEY = "t1-admin-pedidos-view";
+export const ALL = "all";
 
-const FILTERS: { id: string; label: string; test: (o: AdminOrderSummary) => boolean }[] =
-  [
-    { id: "todos", label: "Todos", test: () => true },
-    {
-      id: "pending-payment",
-      label: "Aguardando pagamento",
-      test: (o) => o.status === "pending-payment",
-    },
-    {
-      id: "aguardando-coleta",
-      label: "Aguardando coleta",
-      test: (o) => o.status === "active" && o.deliveryStage === "aguardando-coleta",
-    },
-    {
-      id: "em-transporte",
-      label: "Em transporte",
-      test: (o) => o.status === "active" && o.deliveryStage === "em-transporte",
-    },
-    {
-      id: "disponivel-para-retirada",
-      label: "Disponível p/ retirada",
-      test: (o) =>
-        o.status === "active" && o.deliveryStage === "disponivel-para-retirada",
-    },
-    { id: "completed", label: "Concluídos", test: (o) => o.status === "completed" },
-    { id: "cancelled", label: "Cancelados", test: (o) => o.status === "cancelled" },
-  ];
-
-export function statusLabel(order: AdminOrderSummary) {
-  if (order.status === "pending-payment") return "Aguardando pagamento";
-  if (order.status === "completed") return "Concluído";
-  if (order.status === "cancelled") return "Cancelado";
-  if (order.deliveryStage === "aguardando-coleta") return "Aguardando coleta";
-  if (order.deliveryStage === "em-transporte") return "Em transporte";
-  if (order.deliveryStage === "disponivel-para-retirada") return "P/ retirada";
-  return "Ativo";
-}
-
-export function statusVariant(
-  order: AdminOrderSummary,
-): "default" | "secondary" | "destructive" {
-  if (order.status === "cancelled") return "destructive";
-  if (order.status === "active") return "default";
-  return "secondary";
+function readView(): View {
+  try {
+    return localStorage.getItem(VIEW_KEY) === "tabela" ? "tabela" : "kanban";
+  } catch {
+    return "kanban";
+  }
 }
 
 export function PedidosAdminView() {
-  const router = useRouter();
+  const { stores } = useCatalog();
   const [orders, setOrders] = useState<AdminOrderSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState("todos");
+  const [view, setView] = useState<View>("kanban");
   const [search, setSearch] = useState("");
+  const [origin, setOrigin] = useState(ALL);
+  const [destination, setDestination] = useState(ALL);
+  const periodFilter = usePeriodFilter("30d");
+  const { period } = periodFilter;
+
+  async function load() {
+    try {
+      setOrders(await fetchAdminOrders());
+    } catch (err) {
+      setError(
+        err instanceof AdminError ? err.message : "Não foi possível carregar os pedidos.",
+      );
+    }
+  }
+
+  const mover = useOrderMover(load);
 
   useEffect(() => {
-    let cancelled = false;
-    fetchAdminOrders()
-      .then((data) => {
-        if (!cancelled) setOrders(data);
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(
-            err instanceof AdminError
-              ? err.message
-              : "Não foi possível carregar os pedidos.",
-          );
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
+    // queueMicrotask: nenhuma chamada de setState fica no corpo síncrono do efeito.
+    queueMicrotask(() => {
+      setView(readView());
+      void load();
+    });
   }, []);
+
+  function chooseView(next: View) {
+    setView(next);
+    try {
+      localStorage.setItem(VIEW_KEY, next);
+    } catch {
+      // Sem armazenamento: só não lembra a escolha.
+    }
+  }
+
+  const storeName = (code: string) => stores.find((s) => s.id === code)?.name ?? code;
 
   const filtered = useMemo(() => {
     if (!orders) return [];
     const term = search.trim().toLowerCase();
-    return orders
-      .filter(FILTERS.find((f) => f.id === filter)?.test ?? (() => true))
-      .filter(
-        (o) =>
-          !term ||
-          o.id.slice(0, 8).toLowerCase().includes(term) ||
-          o.customerEmail.toLowerCase().includes(term),
+    return orders.filter((o) => {
+      // No Kanban, quem está em andamento aparece sempre; o período vale para os finalizados.
+      const finished = o.status === "completed" || o.status === "cancelled";
+      const periodDate = finished ? (o.completedAt ?? o.createdAt) : o.createdAt;
+      if ((view === "tabela" || finished) && !inPeriod(periodDate, period)) return false;
+      if (origin !== ALL && !o.originStoreIds.includes(origin)) return false;
+      if (destination !== ALL && o.destinationStoreId !== destination) return false;
+      return (
+        !term ||
+        o.id.slice(0, 8).toLowerCase().includes(term.replace(/^#/, "")) ||
+        o.customerEmail.toLowerCase().includes(term) ||
+        o.customerName.toLowerCase().includes(term)
       );
-  }, [orders, filter, search]);
+    });
+    // period é recriado a cada render; as pontas bastam como dependência.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orders, search, origin, destination, view, period.from, period.to]);
+
+  // Pontos de retirada de hoje e os que já receberam pedidos (podem ter deixado de ser ponto).
+  const pickupStores = stores.filter(
+    (s) => s.isPickupPoint || orders?.some((o) => o.destinationStoreId === s.id),
+  );
 
   return (
-    <div>
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-xl font-semibold text-slate-900">Pedidos</h1>
-        <Input
-          placeholder="Buscar por código ou e-mail"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          className="sm:w-72"
-        />
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">Pedidos</h1>
+          <p className="text-sm text-slate-500">
+            Arraste o cartão para mudar a etapa, ou use &ldquo;Mover para…&rdquo;.
+          </p>
+        </div>
+        <div
+          className="inline-flex self-start rounded-lg border border-slate-200 bg-white p-0.5"
+          role="group"
+          aria-label="Visualização"
+        >
+          {(
+            [
+              { id: "kanban", label: "Kanban", icon: KanbanSquare },
+              { id: "tabela", label: "Tabela", icon: Table2 },
+            ] as const
+          ).map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={view === id}
+              onClick={() => chooseView(id)}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium",
+                view === id
+                  ? "bg-slate-900 text-white"
+                  : "text-slate-600 hover:bg-slate-50",
+              )}
+            >
+              <Icon className="h-4 w-4" aria-hidden="true" />
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-2">
-        {FILTERS.map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            onClick={() => setFilter(f.id)}
-            className={cn(
-              "rounded-full border px-3 py-1 text-xs font-medium",
-              filter === f.id
-                ? "border-brand-600 bg-brand-50 text-brand-700"
-                : "border-slate-200 text-slate-600 hover:bg-slate-50",
-            )}
-          >
-            {f.label}
-            {orders && ` · ${orders.filter(f.test).length}`}
-          </button>
-        ))}
+      <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="grid gap-3 sm:grid-cols-3 lg:flex-1">
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="orders-search" className="text-xs text-slate-500">
+              Buscar
+            </Label>
+            <Input
+              id="orders-search"
+              placeholder="Código, nome ou e-mail"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-8 text-sm"
+            />
+          </div>
+          <StoreSelect
+            id="orders-origin"
+            label="Loja de coleta"
+            value={origin}
+            onChange={setOrigin}
+            stores={stores}
+          />
+          <StoreSelect
+            id="orders-destination"
+            label="Loja de retirada"
+            value={destination}
+            onChange={setDestination}
+            stores={pickupStores}
+          />
+        </div>
+        <PeriodFilter state={periodFilter} idPrefix="orders" />
       </div>
+      <p className="-mt-3 text-xs text-slate-400">
+        {view === "kanban"
+          ? "Pedidos em andamento aparecem sempre; concluídos e cancelados, só os do período."
+          : "Pedidos criados no período (concluídos pela data de conclusão)."}
+      </p>
 
+      {mover.error && (
+        <p
+          role="alert"
+          className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+        >
+          {mover.error}
+        </p>
+      )}
       {error && <p className="text-sm text-red-600">{error}</p>}
       {!orders && !error && <p className="text-sm text-slate-500">Carregando...</p>}
 
-      {orders && (
-        <div className="overflow-x-auto rounded-xl border border-slate-200">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left text-xs text-slate-500">
-              <tr>
-                <th className="px-4 py-2 font-medium">Código</th>
-                <th className="px-4 py-2 font-medium">Cliente</th>
-                <th className="px-4 py-2 font-medium">Status</th>
-                <th className="px-4 py-2 text-right font-medium">Valor pago</th>
-                <th className="px-4 py-2 font-medium">Data</th>
-                <th className="px-4 py-2 font-medium"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
-                    Nenhum pedido encontrado.
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((order) => (
-                  <tr
-                    key={order.id}
-                    className="cursor-pointer border-t border-slate-100 hover:bg-slate-50"
-                    onClick={() => router.push(`/admin/pedidos/${order.id}`)}
-                  >
-                    <td className="px-4 py-3 font-medium text-slate-900">
-                      {order.id.slice(0, 8).toUpperCase()}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {order.customerName || order.customerEmail}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5">
-                        <Badge variant={statusVariant(order)}>{statusLabel(order)}</Badge>
-                        {order.hasPendingCharge && (
-                          <span
-                            title="Cobrança de loja extra pendente"
-                            className="h-1.5 w-1.5 rounded-full bg-amber-500"
-                          />
-                        )}
-                        {order.hasOpenTicket && (
-                          <span
-                            title="Chamado em aberto"
-                            className="h-1.5 w-1.5 rounded-full bg-red-500"
-                          />
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-right font-medium text-slate-900">
-                      {formatBRL(order.totalPaidBRL)}
-                    </td>
-                    <td className="px-4 py-3 text-slate-500">
-                      {new Date(order.createdAt).toLocaleDateString("pt-BR")}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Button variant="ghost" size="sm">
-                        Ver
-                      </Button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {orders &&
+        (view === "kanban" ? (
+          <OrdersKanban orders={filtered} mover={mover} storeName={storeName} />
+        ) : (
+          <OrdersTable orders={filtered} mover={mover} storeName={storeName} />
+        ))}
+      {mover.dialog}
+    </div>
+  );
+}
+
+export function StoreSelect({
+  id,
+  label,
+  value,
+  onChange,
+  stores,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  stores: { id: string; name: string }[];
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <Label htmlFor={id} className="text-xs text-slate-500">
+        {label}
+      </Label>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger id={id} className="h-8 w-full bg-white">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ALL}>Todas</SelectItem>
+          {[...stores]
+            .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
+            .map((s) => (
+              <SelectItem key={s.id} value={s.id}>
+                {s.name}
+              </SelectItem>
+            ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }

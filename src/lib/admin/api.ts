@@ -12,6 +12,23 @@ import {
   type SurveyResponseRow,
 } from "@/lib/survey/api";
 import type { CompetitorQuote, FreightQuoteResult } from "@/lib/types/freight";
+import type { DashboardOrder, DashboardPeriod } from "@/lib/admin/dashboard";
+import type { OrderMoveTarget } from "@/lib/admin/order-moves";
+import type {
+  OrderEvent,
+  OrderEventActorKind,
+  OrderEventKind,
+} from "@/lib/admin/order-events";
+import { addDays } from "@/lib/operating-calendar";
+import { resizeImage } from "@/lib/photo-resize";
+import type {
+  CustodyAction,
+  CustodyEvent,
+  ItemCheck,
+  ItemKind,
+  OrderPhoto,
+  PickupInfo,
+} from "@/lib/admin/handling";
 import type {
   DeliveryStage,
   MockOrder,
@@ -33,7 +50,10 @@ import type { GameTag } from "@/lib/types/signup";
 /** Erro com mensagem pronta para mostrar ao admin. */
 export class AdminError extends Error {}
 
-function friendlyAdminError(error: { message?: string; code?: string }): AdminError {
+export function friendlyAdminError(error: {
+  message?: string;
+  code?: string;
+}): AdminError {
   if (error.code === "P0001" && error.message) return new AdminError(error.message);
   const message = (error.message ?? "").toLowerCase();
   if (message.includes("failed to fetch") || message.includes("network")) {
@@ -42,21 +62,10 @@ function friendlyAdminError(error: { message?: string; code?: string }): AdminEr
   return new AdminError("Não foi possível concluir. Tente novamente.");
 }
 
-async function rpc<T>(name: string, args: Record<string, unknown>): Promise<T> {
+export async function rpc<T>(name: string, args: Record<string, unknown>): Promise<T> {
   const { data, error } = await createBrowserClient().rpc(name as never, args as never);
   if (error) throw friendlyAdminError(error);
   return data as T;
-}
-
-/** true/false; nunca lança — usado só para decidir se mostra a tela ou redireciona. */
-export async function checkIsAdmin(userId: string): Promise<boolean> {
-  const { data, error } = await createBrowserClient()
-    .from("admins")
-    .select("user_id")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (error) return false;
-  return !!data;
 }
 
 // --- Preços ----------------------------------------------------------------
@@ -197,11 +206,19 @@ export interface AdminOrderSummary {
   createdAt: string;
   status: MockOrderStatus;
   deliveryStage?: DeliveryStage;
+  paidAt?: string;
+  completedAt?: string;
+  estimatedPickupDate?: string;
   customerName: string;
   customerEmail: string;
+  /** Códigos das lojas ("fs-01"), como no catálogo. */
+  originStoreIds: string[];
+  destinationStoreId: string;
   totalPaidBRL: number;
   hasPendingCharge: boolean;
   hasOpenTicket: boolean;
+  /** Resultado da conferência: sem conferência, tudo certo ou com divergência. */
+  checkStatus: "none" | "ok" | "divergent";
 }
 
 interface OrderSummaryRow {
@@ -209,10 +226,16 @@ interface OrderSummaryRow {
   created_at: string;
   status: MockOrderStatus;
   delivery_stage: DeliveryStage | null;
+  paid_at: string | null;
+  completed_at: string | null;
+  estimated_pickup_date: string | null;
   amount_due_brl: number | string;
   customer: { name: string; email: string } | null;
+  destination: { code: string } | null;
+  origins: { store: { code: string } | null }[];
   charges: { status: "pending-payment" | "paid"; amount_brl: number | string }[];
   tickets: { resolved: boolean }[];
+  checks: { expected_qty: number; received_qty: number }[];
 }
 
 /** Todos os pedidos, ou só os de um usuário (tela de detalhe do usuário). */
@@ -220,10 +243,14 @@ export async function fetchAdminOrders(userId?: string): Promise<AdminOrderSumma
   let query = createBrowserClient()
     .from("orders")
     .select(
-      `id, created_at, status, delivery_stage, amount_due_brl,
+      `id, created_at, status, delivery_stage, paid_at, completed_at, estimated_pickup_date,
+       amount_due_brl,
        customer:profiles!user_id(name, email),
+       destination:stores!destination_store_id(code),
+       origins:order_origin_stores(store:stores(code)),
        charges:store_charges(status, amount_brl),
-       tickets:support_tickets(resolved)`,
+       tickets:support_tickets(resolved),
+       checks:order_item_checks(expected_qty, received_qty)`,
     )
     .order("created_at", { ascending: false });
   if (userId) query = query.eq("user_id", userId);
@@ -234,8 +261,16 @@ export async function fetchAdminOrders(userId?: string): Promise<AdminOrderSumma
     createdAt: row.created_at,
     status: row.status,
     deliveryStage: row.delivery_stage ?? undefined,
+    paidAt: row.paid_at ?? undefined,
+    completedAt: row.completed_at ?? undefined,
+    estimatedPickupDate: row.estimated_pickup_date ?? undefined,
     customerName: row.customer?.name ?? "",
     customerEmail: row.customer?.email ?? "",
+    originStoreIds: row.origins
+      .map((o) => o.store?.code)
+      .filter((c): c is string => !!c)
+      .sort(),
+    destinationStoreId: row.destination?.code ?? "",
     totalPaidBRL:
       Number(row.amount_due_brl) +
       row.charges
@@ -243,6 +278,60 @@ export async function fetchAdminOrders(userId?: string): Promise<AdminOrderSumma
         .reduce((sum, c) => sum + Number(c.amount_brl), 0),
     hasPendingCharge: row.charges.some((c) => c.status === "pending-payment"),
     hasOpenTicket: row.tickets.some((t) => !t.resolved),
+    checkStatus:
+      row.checks.length === 0
+        ? "none"
+        : row.checks.some((c) => c.received_qty !== c.expected_qty)
+          ? "divergent"
+          : "ok",
+  }));
+}
+
+interface DashboardOrderRow {
+  user_id: string;
+  created_at: string;
+  status: MockOrderStatus;
+  paid_at: string | null;
+  completed_at: string | null;
+  delivery_stage: DeliveryStage | null;
+  items_total_brl: number | string;
+  insurance_extra_cost_brl: number | string;
+  coupon_discount_brl: number | string | null;
+  amount_due_brl: number | string;
+  charges: { status: "pending-payment" | "paid"; amount_brl: number | string }[];
+  tickets: { resolved: boolean }[];
+}
+
+/** Todos os pedidos, só com o que o dashboard calcula. Só admin (RLS). */
+export async function fetchDashboardOrders(): Promise<DashboardOrder[]> {
+  const { data, error } = await createBrowserClient()
+    .from("orders")
+    .select(
+      `user_id, created_at, status, paid_at, completed_at, delivery_stage, items_total_brl,
+       insurance_extra_cost_brl, coupon_discount_brl, amount_due_brl,
+       charges:store_charges(status, amount_brl),
+       tickets:support_tickets(resolved)`,
+    )
+    .returns<DashboardOrderRow[]>();
+  if (error) throw friendlyAdminError(error);
+  return (data ?? []).map((row) => ({
+    userId: row.user_id,
+    createdAt: row.created_at,
+    status: row.status,
+    paidAt: row.paid_at ?? undefined,
+    completedAt: row.completed_at ?? undefined,
+    deliveryStage: row.delivery_stage ?? undefined,
+    // Ao pagar uma loja extra, o pedido já acumula itens e seguro (pay_store_charge).
+    itemsTotalBRL: Number(row.items_total_brl),
+    insuranceBRL: Number(row.insurance_extra_cost_brl),
+    couponDiscountBRL: Number(row.coupon_discount_brl ?? 0),
+    receivedBRL:
+      Number(row.amount_due_brl) +
+      row.charges
+        .filter((c) => c.status === "paid")
+        .reduce((total, c) => total + Number(c.amount_brl), 0),
+    hasOpenTicket: row.tickets.some((t) => !t.resolved),
+    hasPendingCharge: row.charges.some((c) => c.status === "pending-payment"),
   }));
 }
 
@@ -511,16 +600,335 @@ export async function fetchAdminOrder(id: string): Promise<AdminOrder | null> {
   return data ? mapAdminOrder(data) : null;
 }
 
-export async function cancelOrder(orderId: string, reason?: string): Promise<void> {
-  await rpc<void>("admin_cancel_order", { p_order: orderId, p_reason: reason ?? null });
+/** Kanban e detalhe do pedido. Regras em `order-moves.ts`, conferidas de novo no banco. */
+export async function moveOrder(
+  orderId: string,
+  target: OrderMoveTarget,
+  reason?: string,
+): Promise<void> {
+  await rpc<void>("admin_move_order", {
+    p_order: orderId,
+    p_target: target,
+    p_reason: reason?.trim() || null,
+  });
 }
 
-export async function completeOrderManually(orderId: string): Promise<void> {
-  await rpc<void>("admin_complete_order", { p_order: orderId });
+// --- Conferência, fotos, custódia e retirada (0015) -------------------------
+
+export const ORDER_PHOTO_BUCKET = "order-photos";
+const PHOTO_URL_SECONDS = 60 * 60;
+
+export interface CheckRow {
+  card_item_id: string | null;
+  accessory_item_id: string | null;
+  expected_qty: number;
+  received_qty: number;
+  note: string | null;
+  checked_at: string;
 }
 
-export async function advanceDeliveryStage(orderId: string): Promise<DeliveryStage> {
-  return rpc<DeliveryStage>("advance_delivery_stage", { p_order: orderId });
+export interface PhotoRow {
+  id: string;
+  card_item_id: string | null;
+  accessory_item_id: string | null;
+  path: string;
+  created_at: string;
+}
+
+export const CHECK_SELECT =
+  "card_item_id, accessory_item_id, expected_qty, received_qty, note, checked_at";
+export const PHOTO_SELECT = "id, card_item_id, accessory_item_id, path, created_at";
+
+export function mapCheck(row: CheckRow): ItemCheck {
+  return {
+    kind: row.card_item_id ? "card" : "accessory",
+    itemId: (row.card_item_id ?? row.accessory_item_id)!,
+    expectedQty: row.expected_qty,
+    receivedQty: row.received_qty,
+    note: row.note ?? undefined,
+    checkedAt: row.checked_at,
+  };
+}
+
+/** Fotos com link temporário (o bucket é privado: admin e dono do pedido leem). */
+export async function withPhotoUrls(rows: PhotoRow[]): Promise<OrderPhoto[]> {
+  if (rows.length === 0) return [];
+  const { data, error } = await createBrowserClient()
+    .storage.from(ORDER_PHOTO_BUCKET)
+    .createSignedUrls(
+      rows.map((r) => r.path),
+      PHOTO_URL_SECONDS,
+    );
+  if (error) throw friendlyAdminError(error);
+  const urls = new Map((data ?? []).map((d) => [d.path, d.signedUrl]));
+  return rows
+    .map((row): OrderPhoto => ({
+      id: row.id,
+      itemKind: row.card_item_id
+        ? "card"
+        : row.accessory_item_id
+          ? "accessory"
+          : undefined,
+      itemId: row.card_item_id ?? row.accessory_item_id ?? undefined,
+      path: row.path,
+      url: urls.get(row.path) ?? "",
+      createdAt: row.created_at,
+    }))
+    .filter((photo) => photo.url);
+}
+
+export interface OrderHandling {
+  checks: ItemCheck[];
+  photos: OrderPhoto[];
+  custody: CustodyEvent[];
+  pickup: PickupInfo | null;
+}
+
+interface CustodyRow {
+  id: string;
+  created_at: string;
+  action: CustodyAction;
+  location_note: string | null;
+  responsible_name: string | null;
+  note: string | null;
+  store: { code: string } | null;
+  recorder: { name: string } | null;
+}
+
+interface PickupRow {
+  package_token: string;
+  pickup_code: string;
+  failed_attempts: number;
+  locked_until: string | null;
+  used_at: string | null;
+}
+
+export async function fetchOrderHandling(orderId: string): Promise<OrderHandling> {
+  const supabase = createBrowserClient();
+  const [checks, photos, custody, pickup] = await Promise.all([
+    supabase
+      .from("order_item_checks" as never)
+      .select(CHECK_SELECT)
+      .eq("order_id", orderId)
+      .returns<CheckRow[]>(),
+    supabase
+      .from("order_photos" as never)
+      .select(PHOTO_SELECT)
+      .eq("order_id", orderId)
+      .order("created_at")
+      .returns<PhotoRow[]>(),
+    supabase
+      .from("custody_events" as never)
+      .select(
+        `id, created_at, action, location_note, responsible_name, note,
+         store:stores!store_id(code), recorder:profiles!recorded_by(name)`,
+      )
+      .eq("order_id", orderId)
+      .order("created_at", { ascending: false })
+      .returns<CustodyRow[]>(),
+    supabase
+      .from("order_pickups" as never)
+      .select("package_token, pickup_code, failed_attempts, locked_until, used_at")
+      .eq("order_id", orderId)
+      .maybeSingle<PickupRow>(),
+  ]);
+  for (const result of [checks, photos, custody, pickup]) {
+    if (result.error) throw friendlyAdminError(result.error);
+  }
+  return {
+    checks: (checks.data ?? []).map(mapCheck),
+    photos: await withPhotoUrls(photos.data ?? []),
+    custody: (custody.data ?? []).map((row) => ({
+      id: row.id,
+      createdAt: row.created_at,
+      action: row.action,
+      storeCode: row.store?.code,
+      location: row.location_note ?? undefined,
+      responsible: row.responsible_name ?? undefined,
+      note: row.note ?? undefined,
+      recordedByName: row.recorder?.name,
+    })),
+    pickup: pickup.data
+      ? {
+          packageToken: pickup.data.package_token,
+          pickupCode: pickup.data.pickup_code,
+          failedAttempts: pickup.data.failed_attempts,
+          lockedUntil: pickup.data.locked_until ?? undefined,
+          usedAt: pickup.data.used_at ?? undefined,
+        }
+      : null,
+  };
+}
+
+export interface ItemCheckInput {
+  kind: ItemKind;
+  itemId: string;
+  receivedQty: number;
+  note?: string;
+}
+
+export async function saveItemChecks(
+  orderId: string,
+  checks: ItemCheckInput[],
+): Promise<void> {
+  await rpc<void>("admin_save_item_checks", { p_order: orderId, p: checks });
+}
+
+/** Reduz no navegador, envia ao bucket e registra. Se o registro falhar, apaga o arquivo. */
+export async function uploadOrderPhoto(
+  orderId: string,
+  file: File,
+  item?: { kind: ItemKind; id: string },
+): Promise<void> {
+  if (!file.type.startsWith("image/")) throw new AdminError("Envie uma foto.");
+  let blob: Blob;
+  try {
+    blob = await resizeImage(file);
+  } catch {
+    throw new AdminError("Não foi possível ler essa foto. Tente outra.");
+  }
+  const supabase = createBrowserClient();
+  const path = `${orderId}/${crypto.randomUUID()}.jpg`;
+  const { error } = await supabase.storage
+    .from(ORDER_PHOTO_BUCKET)
+    .upload(path, blob, { contentType: "image/jpeg" });
+  if (error) throw new AdminError("Não foi possível enviar a foto. Tente novamente.");
+  try {
+    await rpc<string>("admin_add_photo", {
+      p_order: orderId,
+      p_kind: item?.kind ?? null,
+      p_item: item?.id ?? null,
+      p_path: path,
+    });
+  } catch (err) {
+    await supabase.storage.from(ORDER_PHOTO_BUCKET).remove([path]);
+    throw err;
+  }
+}
+
+export async function deleteOrderPhoto(photoId: string): Promise<void> {
+  const path = await rpc<string>("admin_delete_photo", { p_photo: photoId });
+  // O registro já saiu; se o arquivo ficar para trás, só ocupa espaço.
+  await createBrowserClient().storage.from(ORDER_PHOTO_BUCKET).remove([path]);
+}
+
+export interface CustodyInput {
+  action: CustodyAction;
+  storeCode?: string;
+  location?: string;
+  responsible?: string;
+  note?: string;
+}
+
+export async function addCustodyEvent(
+  orderId: string,
+  input: CustodyInput,
+): Promise<void> {
+  await rpc<string>("admin_add_custody_event", { p_order: orderId, p: input });
+}
+
+// --- Linha do tempo --------------------------------------------------------
+
+interface OrderEventRow {
+  id: string;
+  order_id: string;
+  created_at: string;
+  actor_kind: OrderEventActorKind;
+  kind: OrderEventKind;
+  from_value: string | null;
+  to_value: string | null;
+  reason: string | null;
+  details: Record<string, unknown> | null;
+  backfilled: boolean;
+  actor: { name: string } | null;
+}
+
+const ORDER_EVENT_SELECT = `id, order_id, created_at, actor_kind, kind, from_value, to_value,
+  reason, details, backfilled, actor:profiles!actor_id(name)`;
+
+function mapOrderEvent(row: OrderEventRow): OrderEvent {
+  return {
+    id: row.id,
+    orderId: row.order_id,
+    createdAt: row.created_at,
+    actorKind: row.actor_kind,
+    actorName: row.actor?.name || undefined,
+    kind: row.kind,
+    fromValue: row.from_value ?? undefined,
+    toValue: row.to_value ?? undefined,
+    reason: row.reason ?? undefined,
+    details: row.details ?? {},
+    backfilled: row.backfilled,
+  };
+}
+
+/** Linha do tempo de um pedido, do mais recente ao mais antigo. */
+export async function fetchOrderEvents(orderId: string): Promise<OrderEvent[]> {
+  const { data, error } = await createBrowserClient()
+    .from("order_events" as never)
+    .select(ORDER_EVENT_SELECT)
+    .eq("order_id", orderId)
+    .order("created_at", { ascending: false })
+    .returns<OrderEventRow[]>();
+  if (error) throw friendlyAdminError(error);
+  return (data ?? []).map(mapOrderEvent);
+}
+
+export interface FeedEvent extends OrderEvent {
+  customerName: string;
+  customerEmail: string;
+  originStoreIds: string[];
+  destinationStoreId: string;
+}
+
+interface FeedEventRow extends OrderEventRow {
+  order: {
+    customer: { name: string; email: string } | null;
+    destination: { code: string } | null;
+    origins: { store: { code: string } | null }[];
+  } | null;
+}
+
+const FEED_PAGE = 1000;
+
+/**
+ * Eventos de todos os pedidos no período (dias de Brasília, pontas incluídas),
+ * do mais recente ao mais antigo. Busca, tipo e loja são filtrados na tela.
+ */
+export async function fetchEventFeed(period: DashboardPeriod): Promise<FeedEvent[]> {
+  const rows: FeedEventRow[] = [];
+  for (let page = 0; ; page++) {
+    let query = createBrowserClient()
+      .from("order_events" as never)
+      .select(
+        `${ORDER_EVENT_SELECT},
+         order:orders!order_id(
+           customer:profiles!user_id(name, email),
+           destination:stores!destination_store_id(code),
+           origins:order_origin_stores(store:stores(code))
+         )`,
+      )
+      .order("created_at", { ascending: false })
+      .order("id")
+      .range(page * FEED_PAGE, (page + 1) * FEED_PAGE - 1);
+    // Brasília não tem horário de verão desde 2019: o dia começa às 03h UTC.
+    if (period.from) query = query.gte("created_at", `${period.from}T00:00:00-03:00`);
+    if (period.to)
+      query = query.lt("created_at", `${addDays(period.to, 1)}T00:00:00-03:00`);
+    const { data, error } = await query.returns<FeedEventRow[]>();
+    if (error) throw friendlyAdminError(error);
+    rows.push(...(data ?? []));
+    if ((data ?? []).length < FEED_PAGE) break;
+  }
+  return rows.map((row) => ({
+    ...mapOrderEvent(row),
+    customerName: row.order?.customer?.name ?? "",
+    customerEmail: row.order?.customer?.email ?? "",
+    originStoreIds: (row.order?.origins ?? [])
+      .map((o) => o.store?.code)
+      .filter((c): c is string => !!c),
+    destinationStoreId: row.order?.destination?.code ?? "",
+  }));
 }
 
 export async function setTicketResolved(
@@ -927,42 +1335,4 @@ export async function upsertCoupon(
   input: { type: "percent" | "flat"; value: number; label: string; active: boolean },
 ): Promise<void> {
   await rpc<void>("admin_upsert_coupon", { p_code: code, p: input });
-}
-
-// --- Administradores --------------------------------------------------------
-
-export interface AdminUser {
-  userId: string;
-  name: string;
-  email: string;
-  createdAt: string;
-}
-
-export async function fetchAdmins(): Promise<AdminUser[]> {
-  const { data, error } = await createBrowserClient()
-    .from("admins")
-    .select("user_id, created_at, profile:profiles!user_id(name, email)")
-    .order("created_at")
-    .returns<
-      {
-        user_id: string;
-        created_at: string;
-        profile: { name: string; email: string } | null;
-      }[]
-    >();
-  if (error) throw friendlyAdminError(error);
-  return (data ?? []).map((r) => ({
-    userId: r.user_id,
-    name: r.profile?.name ?? "",
-    email: r.profile?.email ?? "",
-    createdAt: r.created_at,
-  }));
-}
-
-export async function addAdmin(email: string): Promise<string> {
-  return rpc<string>("admin_add_admin", { p_email: email });
-}
-
-export async function removeAdmin(userId: string): Promise<void> {
-  await rpc<void>("admin_remove_admin", { p_target_user_id: userId });
 }

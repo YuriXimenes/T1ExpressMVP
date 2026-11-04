@@ -1,0 +1,289 @@
+import {
+  BadgeDollarSign,
+  BarChart3,
+  Building2,
+  CalendarClock,
+  ClipboardList,
+  FileSearch,
+  Activity,
+  History,
+  KeyRound,
+  LayoutDashboard,
+  Mail,
+  MapPin,
+  Package,
+  Plug,
+  Receipt,
+  Route,
+  Scale,
+  ShieldAlert,
+  ShieldCheck,
+  Store,
+  Tag,
+  TriangleAlert,
+  Truck,
+  UserCog,
+  Users,
+  Wallet,
+  type LucideIcon,
+} from "lucide-react";
+
+/** O que uma tela futura vai ter, mostrado na página "Em breve". */
+export interface SoonInfo {
+  /** Número da entrega no roteiro do backoffice. */
+  delivery: number;
+  summary: string;
+  features: string[];
+}
+
+export interface AdminNavItem {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  /** Tela ainda não construída: o menu mostra "Em breve". */
+  soon?: SoonInfo;
+}
+
+export interface AdminNavGroup {
+  label: string;
+  items: AdminNavItem[];
+}
+
+/**
+ * Menu do backoffice, por categoria. É a fonte única do menu lateral, do
+ * caminho no topo da tela e das páginas "Em breve" (`soonItem`).
+ */
+export const ADMIN_NAV: AdminNavGroup[] = [
+  {
+    label: "Visão geral",
+    items: [{ href: "/admin", label: "Dashboard", icon: LayoutDashboard }],
+  },
+  {
+    label: "Gestão de pedidos",
+    items: [
+      { href: "/admin/pedidos", label: "Pedidos", icon: Package },
+      { href: "/admin/pedidos/historico", label: "Histórico", icon: History },
+      { href: "/admin/pedidos/atividades", label: "Atividades", icon: Activity },
+      {
+        href: "/admin/pedidos/coletas",
+        label: "Planejamento de coletas",
+        icon: CalendarClock,
+        soon: {
+          delivery: 5,
+          summary: "Organizar o que precisa ser coletado em cada loja e por quem.",
+          features: [
+            "Pedidos agrupados por loja e por prioridade, com filtros por região e loja",
+            "Atribuir entregador e definir a ordem das paradas",
+            "Registrar loja fechada ou indisponível",
+            "Sugestões simples de agrupamento de rotas",
+          ],
+        },
+      },
+      {
+        href: "/admin/pedidos/rotas",
+        label: "Rotas",
+        icon: Route,
+        soon: {
+          delivery: 5,
+          summary: "Rotas de coleta e de entrega com acompanhamento parada a parada.",
+          features: [
+            "Rota com tipo, data, entregador, paradas e pedidos",
+            "Horários previstos e reais de início e fim",
+            "Status por rota e por parada (aguardando, em deslocamento, atendida, não realizada, parcial)",
+            "Custo previsto e real com o preço da gasolina do dia",
+            "Área do entregador no celular: fotos, comprovantes e motivos",
+          ],
+        },
+      },
+      {
+        href: "/admin/pedidos/pontos",
+        label: "Pontos de retirada",
+        icon: MapPin,
+        soon: {
+          delivery: 6,
+          summary: "O que está guardado em cada T1 Point.",
+          features: [
+            "Pedidos armazenados por ponto e há quanto tempo estão esperando",
+            "Retirados na semana e pedidos vencidos",
+          ],
+        },
+      },
+      {
+        href: "/admin/pedidos/ocorrencias",
+        label: "Ocorrências",
+        icon: TriangleAlert,
+        soon: {
+          delivery: 6,
+          summary: "Registro e tratamento de problemas da operação.",
+          features: [
+            "Ligada a pedido, coleta, rota, loja, entregador ou pacote",
+            "Categoria, gravidade, responsável, prazo e evidências",
+            "Status e histórico de tratamento",
+          ],
+        },
+      },
+    ],
+  },
+  {
+    label: "Parceiros",
+    items: [
+      { href: "/admin/parceiros/lojas", label: "Lojas", icon: Store },
+      {
+        href: "/admin/parceiros/kyc",
+        label: "KYC / Onboarding",
+        icon: FileSearch,
+        soon: {
+          delivery: 7,
+          summary: "Entrada de novas lojas parceiras com verificação.",
+          features: [
+            "Fluxo de onboarding e verificação (KYC)",
+            "Documentos, aprovações e pendências",
+          ],
+        },
+      },
+      { href: "/admin/formularios", label: "Formulários", icon: Mail },
+      {
+        href: "/admin/parceiros/desempenho",
+        label: "Desempenho",
+        icon: BarChart3,
+        soon: {
+          delivery: 7,
+          summary: "Como cada loja parceira está performando.",
+          features: [
+            "Ranking por volume, prazos e ocorrências",
+            "Sinalizações de lojas com problema",
+            "Avaliação e histórico operacional",
+          ],
+        },
+      },
+    ],
+  },
+  {
+    label: "Financeiro",
+    items: [
+      { href: "/admin/financeiro/precos", label: "Preços", icon: BadgeDollarSign },
+      { href: "/admin/financeiro/cupons", label: "Cupons", icon: Tag },
+      {
+        href: "/admin/financeiro/despesas",
+        label: "Despesas",
+        icon: Receipt,
+        soon: {
+          delivery: 8,
+          summary: "Controle de gastos da operação.",
+          features: [
+            "Despesas em 4 grupos, com categoria, valor, data e responsável",
+            "Vínculo com rota, pedido ou parceiro",
+            "Fluxo de aprovação",
+          ],
+        },
+      },
+      {
+        href: "/admin/financeiro/repasses",
+        label: "Repasses e pagamentos",
+        icon: Wallet,
+        soon: {
+          delivery: 8,
+          summary: "O que a T1 paga a lojas, entregadores e prestadores.",
+          features: ["Repasses por tipo e período", "Status de pagamento e comprovantes"],
+        },
+      },
+      {
+        href: "/admin/financeiro/sinistros",
+        label: "Sinistros",
+        icon: ShieldAlert,
+        soon: {
+          delivery: 8,
+          summary: "Perdas, danos e indenizações.",
+          features: [
+            "Registro do sinistro ligado ao pedido e ao seguro contratado",
+            "Cálculo e acompanhamento da indenização",
+          ],
+        },
+      },
+    ],
+  },
+  {
+    label: "Plataforma",
+    items: [
+      { href: "/admin/usuarios", label: "Usuários", icon: Users },
+      { href: "/admin/pesquisa", label: "Pesquisa", icon: ClipboardList },
+      {
+        href: "/admin/plataforma/comparador",
+        label: "Comparador de fretes",
+        icon: Truck,
+      },
+      {
+        href: "/admin/plataforma/comparativo",
+        label: "Comparativo do site",
+        icon: Scale,
+      },
+    ],
+  },
+  {
+    label: "Pessoas",
+    items: [
+      { href: "/admin/pessoas/equipe", label: "Equipe", icon: Building2 },
+      { href: "/admin/pessoas/acessos", label: "Usuários do admin", icon: UserCog },
+      { href: "/admin/pessoas/perfis", label: "Perfis e permissões", icon: KeyRound },
+    ],
+  },
+  {
+    label: "Sistema",
+    items: [
+      {
+        href: "/admin/sistema/auditoria",
+        label: "Auditoria",
+        icon: ShieldCheck,
+        soon: {
+          delivery: 10,
+          summary: "Registro de tudo o que é alterado no backoffice.",
+          features: [
+            "Quem fez, o quê, valor anterior e novo, quando e justificativa",
+            "Filtros por pessoa, área e período",
+          ],
+        },
+      },
+      {
+        href: "/admin/sistema/integracoes",
+        label: "Integrações",
+        icon: Plug,
+        soon: {
+          delivery: 10,
+          summary: "Serviços conectados e saúde do sistema.",
+          features: ["Status das integrações", "Monitoramento de erros e alertas"],
+        },
+      },
+    ],
+  },
+];
+
+/**
+ * Item do menu que corresponde ao endereço: o de prefixo mais longo, para
+ * /admin/pedidos/123 marcar "Pedidos" e /admin/pedidos/rotas marcar "Rotas".
+ */
+export function activeNavItem(
+  pathname: string,
+): { group: AdminNavGroup; item: AdminNavItem } | null {
+  let best: { group: AdminNavGroup; item: AdminNavItem } | null = null;
+  for (const group of ADMIN_NAV) {
+    for (const item of group.items) {
+      const matches =
+        item.href === "/admin"
+          ? pathname === "/admin"
+          : pathname === item.href || pathname.startsWith(item.href + "/");
+      if (matches && (!best || item.href.length > best.item.href.length)) {
+        best = { group, item };
+      }
+    }
+  }
+  return best;
+}
+
+/** Item "Em breve" pelo endereço; usado pelas páginas de telas futuras. */
+export function soonItem(href: string): AdminNavItem & { soon: SoonInfo } {
+  for (const group of ADMIN_NAV) {
+    const item = group.items.find((i) => i.href === href);
+    if (item?.soon) return item as AdminNavItem & { soon: SoonInfo };
+  }
+  throw new Error(`Item "Em breve" não cadastrado: ${href}`);
+}

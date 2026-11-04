@@ -11,7 +11,7 @@ function formatBRL(value: number) {
   return `R$ ${value.toFixed(2).replace(".", ",")}`;
 }
 
-function cardItemLabel(item: CardLikeItem) {
+export function cardItemLabel(item: CardLikeItem) {
   const gameLabel =
     item.game === "outro"
       ? item.otherGame || "Outro"
@@ -19,7 +19,7 @@ function cardItemLabel(item: CardLikeItem) {
   return `${item.cardName || "Sem nome"} · ${gameLabel}`;
 }
 
-function accessoryItemLabel(item: AccessoryItem) {
+export function accessoryItemLabel(item: AccessoryItem) {
   return item.accessory === "outro"
     ? item.otherAccessory || "Outro acessório"
     : (accessoryOptions.find((option) => option.id === item.accessory)?.label ??

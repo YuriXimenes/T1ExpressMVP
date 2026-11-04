@@ -19,6 +19,22 @@ const nextConfig: NextConfig = {
   // reused by another instance"). Só afeta o ambiente de desenvolvimento —
   // Strict Mode não roda em builds de produção de qualquer forma.
   reactStrictMode: false,
+  // Endereços antigos do admin (antes do backoffice por categorias), para links
+  // salvos continuarem funcionando.
+  async redirects() {
+    return [
+      {
+        source: "/admin/catalogo",
+        destination: "/admin/parceiros/lojas",
+        permanent: false,
+      },
+      {
+        source: "/admin/administradores",
+        destination: "/admin/pessoas/acessos",
+        permanent: false,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

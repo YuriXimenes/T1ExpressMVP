@@ -6,19 +6,26 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { OrderItemsBreakdown } from "@/components/sections/order-items-breakdown";
+import { MoveOrderMenu, useOrderMover } from "@/components/admin/pedidos/move-order";
+import { OrderTimeline } from "@/components/admin/pedidos/order-timeline";
+import { ConferenciaCard } from "@/components/admin/pedidos/conferencia-card";
+import { CustodyCard } from "@/components/admin/pedidos/custody-card";
+import { LabelCard } from "@/components/admin/pedidos/label-card";
 import { useCatalog } from "@/lib/catalog/provider";
-import { getOrderStatusLabel, DELIVERY_STAGES } from "@/lib/order-helpers";
+import { getOrderStatusLabel } from "@/lib/order-helpers";
+import { allowedTargets } from "@/lib/admin/order-moves";
+import { useCan } from "@/lib/admin/access-provider";
+import { cn } from "@/lib/utils";
+import type { OrderEvent } from "@/lib/admin/order-events";
 import {
   AdminError,
   fetchAdminOrder,
-  cancelOrder,
-  completeOrderManually,
-  advanceDeliveryStage,
+  fetchOrderEvents,
+  fetchOrderHandling,
   setTicketResolved,
   type AdminOrder,
+  type OrderHandling,
 } from "@/lib/admin/api";
 
 function formatBRL(value: number) {
@@ -28,20 +35,49 @@ function formatBRL(value: number) {
 export function PedidoAdminDetailView({ orderId }: { orderId: string }) {
   const { stores: freightStores, coletaPartners } = useCatalog();
   const [order, setOrder] = useState<AdminOrder | null | undefined>(undefined);
+  const [events, setEvents] = useState<OrderEvent[] | null>(null);
+  const [handling, setHandling] = useState<OrderHandling | null>(null);
+  const [handlingError, setHandlingError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isWorking, setIsWorking] = useState(false);
-  const [cancelReason, setCancelReason] = useState("");
+  const mover = useOrderMover(load);
+  const canAnswerTickets = useCan("chamados", "edit");
+  const canMoveOrders = useCan("pedidos", "edit");
 
   async function load() {
     try {
-      const data = await fetchAdminOrder(orderId);
+      const [data, timeline] = await Promise.all([
+        fetchAdminOrder(orderId),
+        fetchOrderEvents(orderId),
+      ]);
       setOrder(data);
+      setEvents(timeline);
     } catch (err) {
       setError(
         err instanceof AdminError ? err.message : "Não foi possível carregar o pedido.",
       );
     }
+    await loadHandling();
+  }
+
+  // Separado do pedido: se a conferência falhar, o resto da tela continua de pé.
+  async function loadHandling() {
+    try {
+      setHandling(await fetchOrderHandling(orderId));
+      setHandlingError(null);
+    } catch (err) {
+      setHandlingError(
+        err instanceof AdminError
+          ? err.message
+          : "Não foi possível carregar conferência e custódia.",
+      );
+    }
+  }
+
+  async function refreshAfterHandling() {
+    await loadHandling();
+    setEvents(await fetchOrderEvents(orderId));
   }
 
   useEffect(() => {
@@ -88,12 +124,10 @@ export function PedidoAdminDetailView({ orderId }: { orderId: string }) {
     order.originStoreIds.includes(p.id),
   );
   const destination = freightStores.find((s) => s.id === order.destinationStoreId);
-  const nextStageIndex =
-    1 + DELIVERY_STAGES.findIndex((stage) => stage.id === order.deliveryStage);
-  const nextStage = DELIVERY_STAGES[nextStageIndex];
-  const canAdvance = order.status === "active" && !!nextStage;
-  const canCompleteManually = order.status === "active";
-  const canCancel = order.status === "pending-payment" || order.status === "active";
+  const storeName = (code: string) =>
+    freightStores.find((s) => s.id === code)?.name ?? code;
+  const canMove = allowedTargets(order).length > 0 && canMoveOrders;
+  const shownError = actionError ?? mover.error;
 
   return (
     <div>
@@ -117,12 +151,12 @@ export function PedidoAdminDetailView({ orderId }: { orderId: string }) {
         {new Date(order.createdAt).toLocaleDateString("pt-BR")}
       </p>
 
-      {actionError && (
+      {shownError && (
         <p
           role="alert"
           className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
         >
-          {actionError}
+          {shownError}
         </p>
       )}
       {order.status === "cancelled" && order.cancelReason && (
@@ -137,56 +171,29 @@ export function PedidoAdminDetailView({ orderId }: { orderId: string }) {
             <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">
               Ações
             </p>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={!canAdvance || isWorking}
-                onClick={() => void runAction(() => advanceDeliveryStage(order.id))}
-              >
-                {canAdvance ? `Avançar para "${nextStage!.label}"` : "Avançar etapa"}
-              </Button>
-              <ConfirmDialog
-                trigger={
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={!canCompleteManually || isWorking}
-                  >
-                    Concluir manualmente
-                  </Button>
-                }
-                title="Concluir este pedido manualmente?"
-                description="Marca o pedido como concluído mesmo que ainda não esteja na etapa de retirada."
-                confirmLabel="Concluir"
-                onConfirm={() => void runAction(() => completeOrderManually(order.id))}
-              />
-              <ConfirmDialog
-                trigger={
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    disabled={!canCancel || isWorking}
-                  >
-                    Cancelar pedido
-                  </Button>
-                }
-                title="Cancelar este pedido?"
-                description="Essa ação não pode ser desfeita. O pedido vai para o histórico do cliente como cancelado."
-                confirmLabel="Cancelar pedido"
-                onConfirm={() =>
-                  void runAction(() => cancelOrder(order.id, cancelReason))
-                }
-              />
-            </div>
-            {canCancel && (
-              <Textarea
-                placeholder="Motivo do cancelamento (opcional, só se for cancelar)"
-                rows={2}
-                value={cancelReason}
-                maxLength={500}
-                onChange={(event) => setCancelReason(event.target.value)}
-              />
+            {canMove ? (
+              <>
+                <MoveOrderMenu order={order} mover={mover} className="self-start" />
+                <p className="text-xs text-slate-500">
+                  Avançar para a próxima etapa é direto. Voltar, pular etapa, concluir
+                  antes da retirada e cancelar pedem motivo, que fica na linha do tempo.
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-slate-500">
+                Pedido finalizado: não há mais mudanças de etapa.
+              </p>
+            )}
+          </Card>
+
+          <Card className="gap-4 p-6">
+            <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+              Linha do tempo
+            </p>
+            {events ? (
+              <OrderTimeline events={events} storeName={storeName} />
+            ) : (
+              <p className="text-sm text-slate-500">Carregando...</p>
             )}
           </Card>
 
@@ -307,8 +314,8 @@ export function PedidoAdminDetailView({ orderId }: { orderId: string }) {
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="mt-2"
-                    disabled={isWorking}
+                    className={cn("mt-2", !canAnswerTickets && "hidden")}
+                    disabled={isWorking || !canAnswerTickets}
                     onClick={() =>
                       void runAction(() => setTicketResolved(ticket.id, !ticket.resolved))
                     }
@@ -321,14 +328,31 @@ export function PedidoAdminDetailView({ orderId }: { orderId: string }) {
           )}
         </div>
 
-        <div>
+        <div className="space-y-4">
+          {handlingError && <p className="text-sm text-red-600">{handlingError}</p>}
+          {handling && (
+            <>
+              <LabelCard orderId={order.id} handling={handling} />
+              <ConferenciaCard
+                order={order}
+                handling={handling}
+                storeName={storeName}
+                onChanged={refreshAfterHandling}
+              />
+              <CustodyCard
+                orderId={order.id}
+                handling={handling}
+                onChanged={refreshAfterHandling}
+              />
+            </>
+          )}
           <OrderItemsBreakdown
             originPartners={originPartners}
             ordersByStore={order.ordersByStore}
           />
 
           {order.storeCharges.length > 0 && (
-            <Card className="mt-4 gap-3 p-6">
+            <Card className="gap-3 p-6">
               <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">
                 Cobranças de loja extra
               </p>
@@ -358,6 +382,7 @@ export function PedidoAdminDetailView({ orderId }: { orderId: string }) {
           )}
         </div>
       </div>
+      {mover.dialog}
     </div>
   );
 }
