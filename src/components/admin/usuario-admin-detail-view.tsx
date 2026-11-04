@@ -10,7 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatBRL } from "@/components/shared/price";
 import { formatDate, initials } from "@/components/admin/usuarios-admin-view";
-import { statusLabel, statusVariant } from "@/components/admin/pedidos-admin-view";
+import {
+  situationLabel as statusLabel,
+  situationVariant as statusVariant,
+} from "@/components/admin/pedidos/table";
 import { useCatalog } from "@/lib/catalog/provider";
 import { gameOptions } from "@/lib/data/games";
 import { AdminError, fetchAdminUser, type AdminUserDetail } from "@/lib/admin/api";

@@ -1,14 +1,11 @@
 import type { Metadata } from "next";
-import { PedidosAdminView } from "@/components/admin/pedidos-admin-view";
+import { DashboardView } from "@/components/admin/dashboard-view";
 
-export const metadata: Metadata = { title: "Pedidos" };
+export const metadata: Metadata = { title: "Dashboard" };
 
-// Antes isto era um redirect() de servidor para /admin/pedidos, mas esse
-// padrão (Server Component minúsculo que só redireciona) disparava um erro
-// de instrumentação do React em dev ("Failed to execute 'measure' on
-// Performance... cannot have a negative time stamp") que interrompia a
-// navegação antes da guarda de acesso rodar. Mostrar o conteúdo direto evita
-// o redirect e o problema.
+// Mostra o conteúdo direto, sem redirect() de servidor: esse padrão disparava
+// um erro de instrumentação do React em dev ("Failed to execute 'measure' on
+// Performance...") que interrompia a navegação antes da guarda de acesso rodar.
 export default function AdminIndexPage() {
-  return <PedidosAdminView />;
+  return <DashboardView />;
 }

@@ -6,7 +6,8 @@ import { CATALOG_CACHE_TAG } from "@/lib/catalog/from-supabase";
  * Força o site público a reler o catálogo do Supabase na hora, em vez de
  * esperar o cache de 5 minutos. O app não tem cookie de sessão (ela vive no
  * navegador), então o painel manda o access token no header Authorization e
- * aqui conferimos se o dono do token está em `admins` — via RLS, com o próprio
+ * aqui conferimos se o dono do token tem acesso ativo ao backoffice
+ * (`is_admin()`, que desde a 0016 recusa usuário inativo) — com o próprio
  * token, sem nenhuma chave secreta.
  */
 export async function POST(request: Request) {
@@ -30,16 +31,18 @@ export async function POST(request: Request) {
     return Response.json({ error: "Sessão inválida." }, { status: 401 });
   }
 
-  const { data: admin, error: adminError } = await supabase
-    .from("admins")
-    .select("user_id")
-    .eq("user_id", userData.user.id)
-    .maybeSingle();
+  const { data: isStaff, error: adminError } = await supabase.rpc("is_admin");
   if (adminError) {
-    return Response.json({ error: "Não foi possível verificar o acesso." }, { status: 500 });
+    return Response.json(
+      { error: "Não foi possível verificar o acesso." },
+      { status: 500 },
+    );
   }
-  if (!admin) {
-    return Response.json({ error: "Acesso restrito a administradores." }, { status: 403 });
+  if (!isStaff) {
+    return Response.json(
+      { error: "Acesso restrito a administradores." },
+      { status: 403 },
+    );
   }
 
   revalidateTag(CATALOG_CACHE_TAG, { expire: 0 });

@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { OrderStatusTracker } from "@/components/sections/order-status-tracker";
 import { OrderItemsBreakdown } from "@/components/sections/order-items-breakdown";
+import { OrderHandlingSection } from "@/components/sections/order-handling-section";
 import { StoreOrderBuilder } from "@/components/sections/store-order-builder";
 import { AddStoreFlow } from "@/components/sections/add-store-flow";
 import { FreightStorePickerDialog } from "@/components/shared/freight-store-picker-dialog";
@@ -244,6 +245,7 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
             order={order}
             onMarkCompleted={() => void handleMarkCompleted()}
           />
+          <OrderHandlingSection order={order} />
 
           <Card className="gap-3 p-6">
             <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">
