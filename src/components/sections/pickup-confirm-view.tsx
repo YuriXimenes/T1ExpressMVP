@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { CheckCircle2, PackageX, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -174,7 +175,20 @@ export function PickupConfirmView({ token }: { token: string }) {
             {info.customerFirstName && ` · Cliente: ${info.customerFirstName}`}
           </p>
         </div>
-        {info.state !== "ready" ? (
+        {info.state === "ready" && info.canConfirm === false ? (
+          <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+            <p>
+              {info.loggedIn
+                ? "Esta conta não é da loja de retirada deste pedido. Entre com a conta da loja para confirmar."
+                : "Para confirmar a retirada, entre com a conta da loja."}
+            </p>
+            <Button asChild size="lg" variant={info.loggedIn ? "outline" : "default"}>
+              <Link href={`/login?next=${encodeURIComponent(`/retirada/${token}`)}`}>
+                Entrar com a conta da loja
+              </Link>
+            </Button>
+          </div>
+        ) : info.state !== "ready" ? (
           <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
             {STATE_MESSAGES[info.state ?? ""] ??
               "Este pedido não pode ser retirado agora."}

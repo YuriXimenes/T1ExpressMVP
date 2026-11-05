@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -395,7 +396,15 @@ export function LojasTab() {
           <tbody>
             {stores.map((store) => (
               <tr key={store.id} className="border-t border-slate-100">
-                <td className="px-4 py-2.5 font-medium text-slate-900">{store.code}</td>
+                <td className="px-4 py-2.5 font-medium text-slate-900">
+                  <Link
+                    href={`/admin/parceiros/lojas/${store.code}`}
+                    className="hover:underline"
+                    title="Abrir a ficha da loja"
+                  >
+                    {store.code}
+                  </Link>
+                </td>
                 <td className="px-4 py-2.5 text-slate-700">
                   {store.name}
                   {(missingRoutes.get(store.id)?.length ?? 0) > 0 && (
@@ -412,9 +421,13 @@ export function LojasTab() {
                   {store.city}/{store.state}
                 </td>
                 <td className="px-4 py-2.5">
-                  {store.isPickupPoint && <Badge variant="secondary">Retirada</Badge>}
+                  {store.isPickupPoint && <Badge variant="secondary">Retirada</Badge>}{" "}
+                  {!store.published && <Badge variant="outline">Oculta no site</Badge>}
                 </td>
                 <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                  <Button size="sm" variant="ghost" asChild>
+                    <Link href={`/admin/parceiros/lojas/${store.code}`}>Ficha</Link>
+                  </Button>
                   <Button size="sm" variant="ghost" onClick={() => openEdit(store)}>
                     Editar
                   </Button>

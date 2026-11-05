@@ -273,6 +273,12 @@ export async function customerOpenOccurrence(
   });
 }
 
+export async function fetchStoreOccurrences(storeCode: string): Promise<Occurrence[]> {
+  const list =
+    (await call<Occurrence[]>("store_occurrences", { p_code: storeCode })) ?? [];
+  return Promise.all(list.map(withUrls));
+}
+
 export async function fetchDriverOccurrences(): Promise<Occurrence[]> {
   const list = (await call<Occurrence[]>("driver_my_occurrences")) ?? [];
   return Promise.all(list.map(withUrls));

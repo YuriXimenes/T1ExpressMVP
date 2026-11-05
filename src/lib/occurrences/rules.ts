@@ -3,7 +3,7 @@ import { addDays, holidaysOf, weekdayOf } from "@/lib/operating-calendar";
 /** Regras das ocorrências (espelho da 0018_points_occurrences.sql). */
 
 export type OccurrenceStatus = "aberta" | "em_analise" | "resolvida" | "encerrada";
-export type OccurrenceActor = "admin" | "driver" | "customer" | "system";
+export type OccurrenceActor = "admin" | "driver" | "customer" | "store" | "system";
 export type ResolutionKind =
   | "reembolso"
   | "sinistro"
@@ -29,6 +29,7 @@ export const OCCURRENCE_ACTOR_LABELS: Record<OccurrenceActor, string> = {
   admin: "Equipe T1",
   driver: "Entregador",
   customer: "Cliente",
+  store: "Loja",
   system: "Sistema",
 };
 

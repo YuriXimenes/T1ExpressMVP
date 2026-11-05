@@ -17,6 +17,10 @@ export interface PickupLookup {
   attemptsLeft?: number;
   /** Quem lê é o entregador desta entrega, com a viagem em andamento (0017). */
   driverCanDeliver?: boolean;
+  /** Há alguém logado (0020). */
+  loggedIn?: boolean;
+  /** Quem lê é da loja de destino (ou admin): pode digitar o código (0020). */
+  canConfirm?: boolean;
 }
 
 export interface PickupResult {

@@ -76,34 +76,9 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: "Parceiros",
     items: [
       { href: "/admin/parceiros/lojas", label: "Lojas", icon: Store },
-      {
-        href: "/admin/parceiros/kyc",
-        label: "KYC / Onboarding",
-        icon: FileSearch,
-        soon: {
-          delivery: 7,
-          summary: "Entrada de novas lojas parceiras com verificação.",
-          features: [
-            "Fluxo de onboarding e verificação (KYC)",
-            "Documentos, aprovações e pendências",
-          ],
-        },
-      },
+      { href: "/admin/parceiros/kyc", label: "KYC / Onboarding", icon: FileSearch },
       { href: "/admin/formularios", label: "Formulários", icon: Mail },
-      {
-        href: "/admin/parceiros/desempenho",
-        label: "Desempenho",
-        icon: BarChart3,
-        soon: {
-          delivery: 7,
-          summary: "Como cada loja parceira está performando.",
-          features: [
-            "Ranking por volume, prazos e ocorrências",
-            "Sinalizações de lojas com problema",
-            "Avaliação e histórico operacional",
-          ],
-        },
-      },
+      { href: "/admin/parceiros/desempenho", label: "Desempenho", icon: BarChart3 },
     ],
   },
   {
