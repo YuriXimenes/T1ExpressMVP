@@ -161,6 +161,20 @@ export interface Occurrence {
   updates?: OccurrenceUpdate[];
   attachments?: OccurrenceAttachment[];
   resolutions?: OccurrenceResolution[];
+  /** 0022: reembolso a pagar ao cliente gerado pela resolução "reembolso". */
+  refunds?: {
+    amount: number;
+    status: "a_pagar" | "pago" | "cancelado";
+    paidAt?: string;
+  }[];
+  /** 0022: sinistro aberto pela resolução "sinistro". */
+  claims?: {
+    id?: string;
+    number: number;
+    status: "aberto" | "em_analise" | "aprovado" | "pago" | "negado";
+    approvedAmount?: number;
+    paidAt?: string;
+  }[];
 }
 
 /** Links temporários dos anexos. */

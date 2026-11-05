@@ -1,11 +1,6 @@
-import type { Metadata } from "next";
-import { soonItem } from "@/components/admin/shell/nav";
-import { SoonPage } from "@/components/admin/soon-page";
+import { redirect } from "next/navigation";
 
-const HREF = "/admin/financeiro/repasses";
-
-export const metadata: Metadata = { title: soonItem(HREF).label };
-
-export default function Page() {
-  return <SoonPage href={HREF} />;
+/** Repasses e pagamentos foi unido a Despesas (um lugar só para ver e pagar). */
+export default function AdminRepassesPage() {
+  redirect("/admin/financeiro/despesas");
 }

@@ -186,6 +186,32 @@ export function CustomerOccurrencesCard({ orderId }: { orderId: string }) {
                       ))}
                     </div>
                   )}
+                  {((o.refunds ?? []).length > 0 || (o.claims ?? []).length > 0) && (
+                    <div className="flex flex-col gap-1 rounded-lg bg-sky-50 p-3 text-sm text-sky-900">
+                      {(o.refunds ?? []).map((rf, i) => (
+                        <p key={`rf${i}`}>
+                          Reembolso de {formatBRL(rf.amount)}:{" "}
+                          {rf.status === "pago"
+                            ? `pago em ${rf.paidAt ? new Date(`${rf.paidAt}T12:00:00`).toLocaleDateString("pt-BR") : "—"}`
+                            : rf.status === "cancelado"
+                              ? "cancelado"
+                              : "a pagar"}
+                        </p>
+                      ))}
+                      {(o.claims ?? []).map((cl) => (
+                        <p key={cl.number}>
+                          Sinistro SN-{cl.number}:{" "}
+                          {cl.status === "pago"
+                            ? `indenização de ${formatBRL(cl.approvedAmount ?? 0)} paga em ${cl.paidAt ? new Date(`${cl.paidAt}T12:00:00`).toLocaleDateString("pt-BR") : "—"}`
+                            : cl.status === "aprovado"
+                              ? `indenização de ${formatBRL(cl.approvedAmount ?? 0)} aprovada, pagamento em andamento`
+                              : cl.status === "negado"
+                                ? "não aprovado"
+                                : "em análise"}
+                        </p>
+                      ))}
+                    </div>
+                  )}
                   <OccurrenceThread occurrence={o} viewer="customer" onChanged={load} />
                 </div>
               )}
