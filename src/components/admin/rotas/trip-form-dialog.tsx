@@ -20,7 +20,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AdminError } from "@/lib/admin/api";
-import { ROUTE_KIND_LABELS } from "@/lib/routes/planning";
+import { ROUTE_KIND_LABELS, sharedStores } from "@/lib/routes/planning";
+import { useCatalog } from "@/lib/catalog/provider";
+import { cn } from "@/lib/utils";
 import {
   fetchRoutes,
   saveTrip,
@@ -51,6 +53,7 @@ export function TripFormDialog({
   drivers,
   vehicles,
   onSaved,
+  initialRouteIds,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -59,14 +62,18 @@ export function TripFormDialog({
   drivers: Driver[];
   vehicles: Vehicle[];
   onSaved: (tripId: string) => void;
+  /** Nova viagem já com estas rotas marcadas (atalho "Montar viagem com as duas"). */
+  initialRouteIds?: string[];
 }) {
+  const { stores } = useCatalog();
+  const storeName = (code: string) => stores.find((s) => s.id === code)?.name ?? code;
   const [day, setDay] = useState(trip?.day ?? defaultDay);
   const [driverId, setDriverId] = useState(trip?.driverId ?? "");
   const [vehicleId, setVehicleId] = useState(trip?.vehicleId ?? NONE);
   const [start, setStart] = useState(brasiliaTime(trip?.plannedStartAt) || "08:00");
   const [notes, setNotes] = useState(trip?.notes ?? "");
   const [routeIds, setRouteIds] = useState<Set<string>>(
-    new Set(trip?.routes.map((r) => r.id) ?? []),
+    new Set(trip?.routes.map((r) => r.id) ?? initialRouteIds ?? []),
   );
   const [routes, setRoutes] = useState<RouteSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -216,35 +223,64 @@ export function TripFormDialog({
                 Nenhuma rota livre neste dia. Crie as rotas no Planejamento.
               </p>
             )}
-            {routes?.map((route) => {
-              const orders = new Set(
-                route.stops.flatMap((s) => s.orders.map((o) => o.orderId)),
-              );
-              return (
-                <label
-                  key={route.id}
-                  className="flex items-center gap-2.5 rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                >
-                  <input
-                    type="checkbox"
-                    className="accent-brand-600 h-4 w-4"
-                    checked={routeIds.has(route.id)}
-                    onChange={() =>
-                      setRouteIds((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(route.id)) next.delete(route.id);
-                        else next.add(route.id);
-                        return next;
-                      })
-                    }
-                  />
-                  <span className="font-medium">{ROUTE_KIND_LABELS[route.kind]}</span>
-                  <span className="text-slate-500">
-                    {route.stops.length} parada(s) · {orders.size} pedido(s)
-                  </span>
-                </label>
-              );
-            })}
+            {routes &&
+              [...routes]
+                .map((route) => {
+                  // Lojas em comum com as rotas do outro tipo (marcadas, ou qualquer
+                  // uma do dia se nada foi marcado ainda).
+                  const selected = routes.filter((r) => routeIds.has(r.id));
+                  const others = (selected.length ? selected : routes).filter(
+                    (r) => r.kind !== route.kind,
+                  );
+                  const shared = [
+                    ...new Set(others.flatMap((other) => sharedStores(route, other))),
+                  ];
+                  return { route, shared };
+                })
+                .sort(
+                  (a, b) =>
+                    Number(routeIds.has(b.route.id)) - Number(routeIds.has(a.route.id)) ||
+                    Number(b.shared.length > 0) - Number(a.shared.length > 0),
+                )
+                .map(({ route, shared }) => {
+                  const orders = new Set(
+                    route.stops.flatMap((s) => s.orders.map((o) => o.orderId)),
+                  );
+                  return (
+                    <label
+                      key={route.id}
+                      className={cn(
+                        "flex flex-wrap items-center gap-2.5 rounded-lg border px-3 py-2 text-sm",
+                        shared.length > 0 && !routeIds.has(route.id)
+                          ? "border-violet-300 bg-violet-50/50"
+                          : "border-slate-200",
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        className="accent-brand-600 h-4 w-4"
+                        checked={routeIds.has(route.id)}
+                        onChange={() =>
+                          setRouteIds((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(route.id)) next.delete(route.id);
+                            else next.add(route.id);
+                            return next;
+                          })
+                        }
+                      />
+                      <span className="font-medium">{ROUTE_KIND_LABELS[route.kind]}</span>
+                      <span className="text-slate-500">
+                        {route.stops.length} parada(s) · {orders.size} pedido(s)
+                      </span>
+                      {shared.length > 0 && (
+                        <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-800">
+                          Mesmas lojas: {shared.map(storeName).join(", ")}
+                        </span>
+                      )}
+                    </label>
+                  );
+                })}
           </fieldset>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="trip-notes">Observação para o entregador</Label>

@@ -111,6 +111,7 @@ export interface DashboardSummary {
     awaitingPayment: number;
     awaitingCollection: number;
     inTransit: number;
+    atCentral: number;
     readyForPickup: number;
     openTickets: number;
     pendingCharges: number;
@@ -184,7 +185,12 @@ export function summarizeDashboard(
       inProgress: active.length,
       awaitingPayment: orders.filter((o) => o.status === "pending-payment").length,
       awaitingCollection: stage("aguardando-coleta"),
-      inTransit: stage("em-transporte"),
+      // As três etapas de transporte: indo coletar, a caminho da central e indo ao ponto.
+      inTransit:
+        stage("em-transporte-coleta") +
+        stage("em-transporte") +
+        stage("em-transporte-retirada"),
+      atCentral: stage("recebido-na-central"),
       readyForPickup: stage("disponivel-para-retirada"),
       openTickets: orders.filter((o) => o.hasOpenTicket).length,
       pendingCharges: orders.filter((o) => o.hasPendingCharge).length,

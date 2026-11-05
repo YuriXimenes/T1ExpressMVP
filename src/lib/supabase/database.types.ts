@@ -1020,7 +1020,13 @@ export type Database = {
       carrier_code: "uber" | "loggi" | "correios";
       comparison_status: "positive" | "negative" | "neutral";
       coupon_type: "percent" | "flat";
-      delivery_stage: "aguardando-coleta" | "em-transporte" | "disponivel-para-retirada";
+      delivery_stage:
+        | "aguardando-coleta"
+        | "em-transporte-coleta"
+        | "em-transporte"
+        | "recebido-na-central"
+        | "em-transporte-retirada"
+        | "disponivel-para-retirada";
       game_tag: "magic" | "pokemon" | "yugioh" | "lorcana" | "fab" | "outro";
       order_status: "pending-payment" | "active" | "completed" | "cancelled";
       payment_method: "pix" | "credit-card";
@@ -1154,7 +1160,14 @@ export const Constants = {
       carrier_code: ["uber", "loggi", "correios"],
       comparison_status: ["positive", "negative", "neutral"],
       coupon_type: ["percent", "flat"],
-      delivery_stage: ["aguardando-coleta", "em-transporte", "disponivel-para-retirada"],
+      delivery_stage: [
+        "aguardando-coleta",
+        "em-transporte-coleta",
+        "em-transporte",
+        "recebido-na-central",
+        "em-transporte-retirada",
+        "disponivel-para-retirada",
+      ],
       game_tag: ["magic", "pokemon", "yugioh", "lorcana", "fab", "outro"],
       order_status: ["pending-payment", "active", "completed", "cancelled"],
       payment_method: ["pix", "credit-card"],

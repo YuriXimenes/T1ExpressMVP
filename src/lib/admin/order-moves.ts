@@ -9,7 +9,10 @@ export type OrderMoveTarget = Exclude<OrderColumnId, "pending-payment">;
 export const ORDER_COLUMNS: { id: OrderColumnId; label: string }[] = [
   { id: "pending-payment", label: "Aguardando pagamento" },
   { id: "aguardando-coleta", label: "Aguardando coleta" },
-  { id: "em-transporte", label: "Em transporte" },
+  { id: "em-transporte-coleta", label: "Em transporte p/ coleta" },
+  { id: "em-transporte", label: "A caminho da central" },
+  { id: "recebido-na-central", label: "Recebido na central" },
+  { id: "em-transporte-retirada", label: "Em transporte p/ retirada" },
   { id: "disponivel-para-retirada", label: "Disponível p/ retirada" },
   { id: "completed", label: "Concluídos" },
   { id: "cancelled", label: "Cancelados" },
@@ -18,7 +21,10 @@ export const ORDER_COLUMNS: { id: OrderColumnId; label: string }[] = [
 /** Nome do destino na frase "Mover para …". */
 export const MOVE_TARGET_LABELS: Record<OrderMoveTarget, string> = {
   "aguardando-coleta": "Aguardando coleta",
-  "em-transporte": "Em transporte",
+  "em-transporte-coleta": "Em transporte para coleta",
+  "em-transporte": "A caminho da central",
+  "recebido-na-central": "Recebido na central",
+  "em-transporte-retirada": "Em transporte para retirada",
   "disponivel-para-retirada": "Disponível para retirada",
   completed: "Concluído",
   cancelled: "Cancelado",
@@ -26,7 +32,10 @@ export const MOVE_TARGET_LABELS: Record<OrderMoveTarget, string> = {
 
 const STAGES: DeliveryStage[] = [
   "aguardando-coleta",
+  "em-transporte-coleta",
   "em-transporte",
+  "recebido-na-central",
+  "em-transporte-retirada",
   "disponivel-para-retirada",
 ];
 

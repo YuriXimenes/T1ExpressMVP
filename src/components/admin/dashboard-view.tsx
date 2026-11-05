@@ -194,7 +194,9 @@ export function DashboardView() {
             <StatTile
               label="Em transporte"
               value={count(summary.operational.inTransit)}
+              detail="indo coletar, a caminho da central ou indo ao ponto"
             />
+            <StatTile label="Na central" value={count(summary.operational.atCentral)} />
             <StatTile
               label="Disponível p/ retirada"
               value={count(summary.operational.readyForPickup)}

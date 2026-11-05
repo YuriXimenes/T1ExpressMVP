@@ -72,7 +72,10 @@ export const ACTOR_KIND_LABELS: Record<OrderEventActorKind, string> = {
 const SITUATION_LABELS: Record<string, string> = {
   "pending-payment": "Aguardando pagamento",
   "aguardando-coleta": "Aguardando coleta",
-  "em-transporte": "Em transporte",
+  "em-transporte-coleta": "Em transporte para coleta",
+  "em-transporte": "A caminho da central",
+  "recebido-na-central": "Recebido na central",
+  "em-transporte-retirada": "Em transporte para retirada",
   "disponivel-para-retirada": "Disponível para retirada",
   completed: "Concluído",
   cancelled: "Cancelado",

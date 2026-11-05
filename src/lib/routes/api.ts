@@ -13,12 +13,15 @@ export interface BacklogRow {
   orderId: string;
   storeCode: string;
   openRouteId?: string;
+  /** Só nas entregas: conferência salva na central. */
+  checked?: boolean;
 }
 
 interface BacklogDbRow {
   order_id: string;
   store_code: string;
   open_route_id: string | null;
+  checked?: boolean | null;
 }
 
 export async function fetchBacklog(kind: RouteKind): Promise<BacklogRow[]> {
@@ -30,6 +33,7 @@ export async function fetchBacklog(kind: RouteKind): Promise<BacklogRow[]> {
     orderId: r.order_id,
     storeCode: r.store_code,
     openRouteId: r.open_route_id ?? undefined,
+    checked: r.checked ?? undefined,
   }));
 }
 
@@ -556,4 +560,22 @@ export async function updateOpsSettings(input: OpsSettings) {
       stopMinutes: input.stopMinutes,
     },
   });
+}
+
+// --- Central ------------------------------------------------------------------------
+
+/** Marca pedidos "A caminho da central" como recebidos (etapa + custódia). */
+export async function markAtCentral(orderIds: string[], note?: string): Promise<number> {
+  return rpc<number>("admin_mark_at_central", {
+    p_orders: orderIds,
+    p_note: note ?? null,
+  });
+}
+
+/** Pedidos coletados na viagem que ainda não foram recebidos na central. */
+export async function fetchTripCentralCandidates(tripId: string): Promise<string[]> {
+  const rows = await rpc<{ order_id: string }[]>("admin_trip_central_candidates", {
+    p_trip: tripId,
+  });
+  return (rows ?? []).map((r) => r.order_id);
 }

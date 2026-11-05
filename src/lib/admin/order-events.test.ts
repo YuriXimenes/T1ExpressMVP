@@ -20,20 +20,20 @@ describe("texto dos eventos", () => {
       describeEvent(
         event({
           kind: "stage_changed",
-          fromValue: "em-transporte",
+          fromValue: "em-transporte-retirada",
           toValue: "disponivel-para-retirada",
         }),
       ),
     ).toEqual({
       title: "Etapa alterada",
-      detail: "Em transporte → Disponível para retirada",
+      detail: "Em transporte para retirada → Disponível para retirada",
     });
     expect(
       describeEvent(event({ kind: "completed", fromValue: "disponivel-para-retirada" })),
     ).toEqual({ title: "Pedido concluído", detail: undefined });
     expect(
       describeEvent(event({ kind: "completed", fromValue: "em-transporte" })).detail,
-    ).toBe('Concluído direto de "Em transporte"');
+    ).toBe('Concluído direto de "A caminho da central"');
     expect(
       describeEvent(
         event({

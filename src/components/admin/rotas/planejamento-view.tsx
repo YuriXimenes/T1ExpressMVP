@@ -75,6 +75,7 @@ export function PlanejamentoView() {
             orderId: b.orderId,
             storeCode: b.storeCode,
             openRouteId: b.openRouteId,
+            checked: b.checked,
             customerName: order?.customerName || order?.customerEmail || "",
             estimatedPickupDate: order?.estimatedPickupDate,
             createdAt: order?.createdAt ?? "",
@@ -143,6 +144,7 @@ export function PlanejamentoView() {
         orderId: string;
         customerName: string;
         estimatedPickupDate?: string;
+        checked?: boolean;
         createdAt: string;
         items: { storeCode: string; openRouteId?: string }[];
       }
@@ -152,6 +154,7 @@ export function PlanejamentoView() {
         orderId: row.orderId,
         customerName: row.customerName,
         estimatedPickupDate: row.estimatedPickupDate,
+        checked: row.checked,
         createdAt: row.createdAt,
         items: [],
       };
@@ -264,8 +267,9 @@ export function PlanejamentoView() {
       <div>
         <h1 className="text-xl font-semibold text-slate-900">Planejamento</h1>
         <p className="text-sm text-slate-500">
-          O que falta coletar em cada loja e entregar em cada ponto de retirada. Marque os
-          pedidos e crie a rota; depois junte as rotas numa viagem em Rotas e viagens.
+          Coletas: o que falta buscar em cada loja. Entregas: o que já foi recebido na
+          central e vai para o ponto de retirada. Marque os pedidos e crie a rota; depois
+          junte as rotas numa viagem em Rotas e viagens.
         </p>
       </div>
 
@@ -375,7 +379,7 @@ export function PlanejamentoView() {
         <p className="text-sm text-slate-500">
           {kind === "coleta"
             ? "Nada para coletar: todos os pedidos pagos já foram coletados."
-            : "Nada para entregar: nenhum pedido em transporte."}
+            : "Nada para entregar: nenhum pedido recebido na central."}
         </p>
       )}
 
@@ -417,6 +421,11 @@ export function PlanejamentoView() {
                     #{orderCode(order.orderId)}
                   </span>
                   <span className="min-w-0 flex-1 truncate">{order.customerName}</span>
+                  {kind === "entrega" && order.checked === false && (
+                    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+                      Conferência pendente
+                    </span>
+                  )}
                   {allInRoute ? (
                     <Badge variant="secondary">Em rota</Badge>
                   ) : (
@@ -551,6 +560,11 @@ export function PlanejamentoView() {
                         <span className="min-w-0 flex-1 truncate">
                           {order.customerName}
                         </span>
+                        {kind === "entrega" && order.checked === false && (
+                          <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+                            Conferência pendente
+                          </span>
+                        )}
                         {inRoute ? (
                           <Badge variant="secondary">Em rota</Badge>
                         ) : (

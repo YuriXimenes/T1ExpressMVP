@@ -15,7 +15,9 @@ import { useCan } from "@/lib/admin/access-provider";
 import { AdminError } from "@/lib/admin/api";
 import { dayKey } from "@/lib/admin/dashboard";
 import { addDays } from "@/lib/operating-calendar";
-import { ROUTE_KIND_LABELS, TRIP_STATUS_LABELS } from "@/lib/routes/planning";
+import { ROUTE_KIND_LABELS, TRIP_STATUS_LABELS, routePairs } from "@/lib/routes/planning";
+import { useCatalog } from "@/lib/catalog/provider";
+import { cn } from "@/lib/utils";
 import {
   cancelRoute,
   fetchDrivers,
@@ -58,6 +60,9 @@ export function RotasView() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [preset, setPreset] = useState<{ day: string; routeIds: string[] } | null>(null);
+  const { stores } = useCatalog();
+  const storeName = (code: string) => stores.find((s) => s.id === code)?.name ?? code;
 
   async function load() {
     try {
@@ -157,18 +162,54 @@ export function RotasView() {
               const orders = new Set(
                 route.stops.flatMap((s) => s.orders.map((o) => o.orderId)),
               );
+              // Rota do outro tipo, no mesmo dia, que passa nas mesmas lojas.
+              const pair = routePairs(freeRoutes).find(
+                (p) => p.coleta.id === route.id || p.entrega.id === route.id,
+              );
+              const partner =
+                pair && (pair.coleta.id === route.id ? pair.entrega : pair.coleta);
               return (
                 <li
                   key={route.id}
-                  className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white p-3 text-sm"
+                  className={cn(
+                    "flex items-start justify-between gap-2 rounded-xl border bg-white p-3 text-sm",
+                    pair ? "border-violet-300" : "border-slate-200",
+                  )}
                 >
-                  <div>
+                  <div className="flex min-w-0 flex-col gap-1">
                     <p className="font-medium text-slate-900">
                       {ROUTE_KIND_LABELS[route.kind]} · {dayLabel(route.day)}
                     </p>
                     <p className="text-xs text-slate-500">
                       {route.stops.length} parada(s) · {orders.size} pedido(s)
                     </p>
+                    {pair && partner && (
+                      <>
+                        <p className="text-xs text-violet-800">
+                          Passa nas mesmas lojas que a rota de{" "}
+                          {ROUTE_KIND_LABELS[partner.kind].toLowerCase()} de{" "}
+                          {dayLabel(partner.day)} ({pair.stores.map(storeName).join(", ")}
+                          ).
+                        </p>
+                        {canCreate && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="self-start"
+                            onClick={() => {
+                              setPreset({
+                                day: route.day,
+                                routeIds: [pair.coleta.id, pair.entrega.id],
+                              });
+                              setCreating(true);
+                            }}
+                          >
+                            Montar viagem com as duas
+                          </Button>
+                        )}
+                      </>
+                    )}
                   </div>
                   {canDelete && (
                     <ConfirmDialog
@@ -272,8 +313,12 @@ export function RotasView() {
       {creating && (
         <TripFormDialog
           open={creating}
-          onOpenChange={setCreating}
-          defaultDay={nextOperatingDay()}
+          onOpenChange={(open) => {
+            setCreating(open);
+            if (!open) setPreset(null);
+          }}
+          defaultDay={preset?.day ?? nextOperatingDay()}
+          initialRouteIds={preset?.routeIds}
           drivers={drivers}
           vehicles={vehicles}
           onSaved={(id) => router.push(`/admin/pedidos/rotas/${id}`)}
