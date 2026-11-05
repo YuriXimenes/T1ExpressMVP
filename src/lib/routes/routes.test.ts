@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { kmBetween, routeKm, suggestOrder } from "@/lib/routes/geo";
-import { groupBacklog, stopReasonLabel } from "@/lib/routes/planning";
+import {
+  groupBacklog,
+  routePairs,
+  sharedStores,
+  stopReasonLabel,
+} from "@/lib/routes/planning";
 
 const base = { lat: -22.9, lng: -43.2 };
 const a = { lat: -22.91, lng: -43.18 };
@@ -79,5 +84,38 @@ describe("planejamento", () => {
 
   it("rótulo do motivo", () => {
     expect(stopReasonLabel("loja_fechada")).toBe("Loja fechada");
+  });
+});
+
+describe("união de coleta e entrega", () => {
+  const route = (id: string, kind: string, day: string, codes: string[]) => ({
+    id,
+    kind,
+    day,
+    stops: codes.map((storeCode) => ({ storeCode })),
+  });
+
+  it("lojas em comum, sem repetir", () => {
+    expect(
+      sharedStores(
+        route("a", "coleta", "d", ["x", "y", "x"]),
+        route("b", "entrega", "d", ["y", "x"]),
+      ),
+    ).toEqual(["x", "y"]);
+    expect(
+      sharedStores(route("a", "coleta", "d", ["x"]), route("b", "entrega", "d", ["z"])),
+    ).toEqual([]);
+  });
+
+  it("pares coleta × entrega só no mesmo dia e com loja em comum", () => {
+    const pairs = routePairs([
+      route("c1", "coleta", "2026-11-06", ["x", "y"]),
+      route("e1", "entrega", "2026-11-06", ["y"]),
+      route("e2", "entrega", "2026-11-09", ["x"]),
+      route("e3", "entrega", "2026-11-06", ["z"]),
+    ]);
+    expect(pairs.map((p) => [p.coleta.id, p.entrega.id, p.stores])).toEqual([
+      ["c1", "e1", ["y"]],
+    ]);
   });
 });

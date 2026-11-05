@@ -30,12 +30,26 @@ describe("colunas", () => {
 
 describe("regras de movimento", () => {
   it("avançar uma etapa não pede motivo", () => {
-    expect(moveRule(coleta, "em-transporte")).toEqual(ok(false));
-    expect(moveRule(transporte, "disponivel-para-retirada")).toEqual(ok(false));
+    expect(moveRule(coleta, "em-transporte-coleta")).toEqual(ok(false));
+    expect(moveRule(transporte, "recebido-na-central")).toEqual(ok(false));
+    expect(
+      moveRule(
+        { status: "active", deliveryStage: "recebido-na-central" },
+        "em-transporte-retirada",
+      ),
+    ).toEqual(ok(false));
+    expect(
+      moveRule(
+        { status: "active", deliveryStage: "em-transporte-retirada" },
+        "disponivel-para-retirada",
+      ),
+    ).toEqual(ok(false));
     expect(moveRule(retirada, "completed")).toEqual(ok(false));
   });
 
   it("voltar ou pular etapa pede motivo", () => {
+    expect(moveRule(coleta, "em-transporte")).toEqual(ok(true));
+    expect(moveRule(transporte, "disponivel-para-retirada")).toEqual(ok(true));
     expect(moveRule(coleta, "disponivel-para-retirada")).toEqual(ok(true));
     expect(moveRule(transporte, "aguardando-coleta")).toEqual(ok(true));
     expect(moveRule(retirada, "aguardando-coleta")).toEqual(ok(true));
@@ -74,7 +88,10 @@ describe("regras de movimento", () => {
   it("lista os destinos permitidos na ordem das colunas", () => {
     expect(allowedTargets(transporte)).toEqual([
       { target: "aguardando-coleta", needsReason: true },
-      { target: "disponivel-para-retirada", needsReason: false },
+      { target: "em-transporte-coleta", needsReason: true },
+      { target: "recebido-na-central", needsReason: false },
+      { target: "em-transporte-retirada", needsReason: true },
+      { target: "disponivel-para-retirada", needsReason: true },
       { target: "completed", needsReason: true },
       { target: "cancelled", needsReason: true },
     ]);

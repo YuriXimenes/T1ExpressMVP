@@ -4,8 +4,17 @@ import type { FreightQuoteResult } from "@/lib/types/freight";
 export type MockOrderStatus = "pending-payment" | "active" | "completed" | "cancelled";
 
 /** Etapa de entrega dentro do status "active" — avançada manualmente no mock, sem integração real com transportadora. */
+/**
+ * "em-transporte" = "A caminho da central": coletado em todas as lojas. O valor
+ * antigo foi mantido para não reescrever o histórico (0019_stage_flow.sql).
+ */
 export type DeliveryStage =
-  "aguardando-coleta" | "em-transporte" | "disponivel-para-retirada";
+  | "aguardando-coleta"
+  | "em-transporte-coleta"
+  | "em-transporte"
+  | "recebido-na-central"
+  | "em-transporte-retirada"
+  | "disponivel-para-retirada";
 
 export type PaymentMethod = "pix" | "credit-card";
 

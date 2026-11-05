@@ -14,6 +14,7 @@ import { CustodyCard } from "@/components/admin/pedidos/custody-card";
 import { LabelCard } from "@/components/admin/pedidos/label-card";
 import { OrderRoutesCard } from "@/components/admin/pedidos/order-routes-card";
 import { OrderOccurrencesCard } from "@/components/admin/pedidos/order-occurrences-card";
+import { markAtCentral } from "@/lib/routes/api";
 import { useCatalog } from "@/lib/catalog/provider";
 import { getOrderStatusLabel } from "@/lib/order-helpers";
 import { allowedTargets } from "@/lib/admin/order-moves";
@@ -173,6 +174,28 @@ export function PedidoAdminDetailView({ orderId }: { orderId: string }) {
             <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">
               Ações
             </p>
+            {canMoveOrders &&
+              order.status === "active" &&
+              order.deliveryStage === "em-transporte" && (
+                <div className="flex flex-col gap-1.5 rounded-lg border border-sky-200 bg-sky-50 p-3">
+                  <p className="text-sm text-sky-900">
+                    Coletado em todas as lojas e a caminho da central.
+                  </p>
+                  <Button
+                    size="sm"
+                    className="self-start"
+                    disabled={isWorking}
+                    onClick={() =>
+                      void runAction(async () => {
+                        await markAtCentral([order.id]);
+                        await refreshAfterHandling();
+                      })
+                    }
+                  >
+                    Marcar como recebido na central
+                  </Button>
+                </div>
+              )}
             {canMove ? (
               <>
                 <MoveOrderMenu order={order} mover={mover} className="self-start" />

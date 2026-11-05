@@ -269,6 +269,15 @@ function TripScreen({
     (s) => s.status === "aguardando" || s.status === "em_deslocamento",
   );
   const running = trip.status === "em_andamento";
+  // Loja com coleta e entrega na mesma viagem: faz as duas na mesma passada.
+  const storesOf = (kind: string) =>
+    new Set(
+      trip.routes
+        .filter((r) => r.kind === kind)
+        .flatMap((r) => r.stops.map((st) => `${st.store.name}|${st.store.address}`)),
+    );
+  const collectStores = storesOf("coleta");
+  const deliverStores = storesOf("entrega");
 
   async function submitOdometer() {
     const value = Number(odometer.replace(",", "."));
@@ -353,6 +362,15 @@ function TripScreen({
                     <p className="font-semibold text-slate-900">
                       {i + 1}. {s.store.name}
                     </p>
+                    {(route.kind === "coleta" ? deliverStores : collectStores).has(
+                      `${s.store.name}|${s.store.address}`,
+                    ) && (
+                      <p className="mt-0.5 inline-block rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700">
+                        {route.kind === "coleta"
+                          ? "Também tem entrega aqui"
+                          : "Também tem coleta aqui"}
+                      </p>
+                    )}
                     <p className="text-sm text-slate-600">
                       {s.store.address}
                       {s.store.neighborhood && ` · ${s.store.neighborhood}`}

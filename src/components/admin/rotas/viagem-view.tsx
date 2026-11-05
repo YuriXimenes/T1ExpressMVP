@@ -34,6 +34,8 @@ import {
   cancelTrip,
   fetchDrivers,
   fetchTrip,
+  fetchTripCentralCandidates,
+  markAtCentral,
   fetchVehicles,
   removeRouteOrder,
   reorderStops,
@@ -69,6 +71,11 @@ export function ViagemView({ tripId }: { tripId: string }) {
   const [cancelling, setCancelling] = useState(false);
   const [reason, setReason] = useState("");
   const [odometer, setOdometer] = useState<{ start: string; end: string } | null>(null);
+  const [central, setCentral] = useState<{
+    candidates: string[];
+    chosen: Set<string>;
+  } | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   async function load() {
     try {
@@ -125,6 +132,32 @@ export function ViagemView({ tripId }: { tripId: string }) {
     trip.actualDriverCost !== undefined
       ? (trip.actualFuelCost ?? 0) + trip.actualDriverCost
       : undefined;
+
+  // Loja que aparece na coleta e na entrega da mesma viagem: o entregador faz as duas lá.
+  const storesOf = (kind: string) =>
+    new Set(
+      trip.routes
+        .filter((r) => r.kind === kind)
+        .flatMap((r) => r.stops.map((s) => s.storeCode)),
+    );
+  const collectStores = storesOf("coleta");
+  const deliverStores = storesOf("entrega");
+  const hasCollect = trip.routes.some((r) => r.kind === "coleta");
+
+  async function openCentral() {
+    setError(null);
+    setNotice(null);
+    try {
+      const candidates = await fetchTripCentralCandidates(trip!.id);
+      if (candidates.length === 0) {
+        setNotice("Nenhum pedido coletado aguardando chegada na central.");
+        return;
+      }
+      setCentral({ candidates, chosen: new Set(candidates) });
+    } catch (err) {
+      setError(errorText(err, "Não foi possível carregar os pedidos coletados."));
+    }
+  }
 
   function moveStop(route: RouteSummary, index: number, delta: number) {
     const ids = route.stops.map((s) => s.id);
@@ -187,6 +220,13 @@ export function ViagemView({ tripId }: { tripId: string }) {
               />
             </>
           )}
+          {(trip.status === "em_andamento" || trip.status === "concluida") &&
+            canEdit &&
+            hasCollect && (
+              <Button type="button" disabled={busy} onClick={() => void openCentral()}>
+                Chegou na central
+              </Button>
+            )}
           {(trip.status === "em_andamento" || trip.status === "concluida") && canEdit && (
             <Button
               type="button"
@@ -223,6 +263,7 @@ export function ViagemView({ tripId }: { tripId: string }) {
           {error}
         </p>
       )}
+      {notice && <p className="text-sm text-emerald-700">{notice}</p>}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Card className="gap-1 p-4">
@@ -301,8 +342,17 @@ export function ViagemView({ tripId }: { tripId: string }) {
                 >
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="font-medium text-slate-900">
+                      <p className="flex flex-wrap items-center gap-2 font-medium text-slate-900">
                         {index + 1}. {storeName(stop.storeCode)}
+                        {(route.kind === "coleta" ? deliverStores : collectStores).has(
+                          stop.storeCode,
+                        ) && (
+                          <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700">
+                            {route.kind === "coleta"
+                              ? "Também tem entrega aqui"
+                              : "Também tem coleta aqui"}
+                          </span>
+                        )}
                       </p>
                       <p className="text-xs text-slate-500">
                         Previsto {brasiliaTime(stop.plannedAt) || "—"}
@@ -438,6 +488,71 @@ export function ViagemView({ tripId }: { tripId: string }) {
           }}
         />
       )}
+
+      <Dialog open={!!central} onOpenChange={(v) => !busy && !v && setCentral(null)}>
+        {central && (
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Chegou na central</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-slate-600">
+              Pedidos coletados nesta viagem que ainda não foram recebidos. Os marcados
+              vão para &ldquo;Recebido na central&rdquo;.
+            </p>
+            <ul className="flex max-h-72 flex-col gap-1.5 overflow-y-auto">
+              {central.candidates.map((id) => (
+                <li key={id}>
+                  <label className="flex items-center gap-2.5 rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className="accent-brand-600 h-4 w-4"
+                      checked={central.chosen.has(id)}
+                      onChange={() =>
+                        setCentral((c) => {
+                          if (!c) return c;
+                          const chosen = new Set(c.chosen);
+                          if (chosen.has(id)) chosen.delete(id);
+                          else chosen.add(id);
+                          return { ...c, chosen };
+                        })
+                      }
+                    />
+                    <span className="font-medium text-slate-900">#{orderCode(id)}</span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy}
+                onClick={() => setCentral(null)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                disabled={busy || central.chosen.size === 0}
+                onClick={() => {
+                  const ids = [...central.chosen];
+                  void run(
+                    () => markAtCentral(ids),
+                    "Não foi possível marcar a chegada.",
+                  ).then((ok) => {
+                    if (ok) {
+                      setCentral(null);
+                      setNotice(`${ids.length} pedido(s) recebido(s) na central.`);
+                    }
+                  });
+                }}
+              >
+                Confirmar ({central.chosen.size})
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        )}
+      </Dialog>
 
       <Dialog open={cancelling} onOpenChange={(v) => !busy && setCancelling(v)}>
         <DialogContent>

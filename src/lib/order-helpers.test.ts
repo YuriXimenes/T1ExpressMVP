@@ -51,7 +51,7 @@ describe("getOrderStatusLabel", () => {
       getOrderStatusLabel(
         makeOrder({ status: "active", deliveryStage: "em-transporte" }),
       ),
-    ).toBe("Em transporte");
+    ).toBe("A caminho da central");
   });
 });
 

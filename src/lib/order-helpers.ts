@@ -3,7 +3,10 @@ import type { DeliveryStage, MockOrder } from "@/lib/types/mock-order";
 
 export const DELIVERY_STAGES: { id: DeliveryStage; label: string }[] = [
   { id: "aguardando-coleta", label: "Aguardando coleta" },
-  { id: "em-transporte", label: "Em transporte" },
+  { id: "em-transporte-coleta", label: "Em transporte para coleta" },
+  { id: "em-transporte", label: "A caminho da central" },
+  { id: "recebido-na-central", label: "Recebido na central" },
+  { id: "em-transporte-retirada", label: "Em transporte para retirada" },
   { id: "disponivel-para-retirada", label: "Disponível para retirada" },
 ];
 

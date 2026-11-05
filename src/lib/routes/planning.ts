@@ -9,6 +9,8 @@ export interface BacklogOrder {
   /** Previsão de retirada: quanto mais cedo, mais urgente. */
   estimatedPickupDate?: string;
   createdAt: string;
+  /** Entregas: a conferência já foi salva na central. */
+  checked?: boolean;
 }
 
 export interface StoreBacklog {
@@ -78,3 +80,31 @@ export const ROUTE_KIND_LABELS: Record<string, string> = {
   coleta: "Coleta",
   entrega: "Entrega",
 };
+
+/**
+ * Lojas em comum entre duas rotas (pelas paradas). Uma rota de coleta e uma de
+ * entrega do mesmo dia que passam na mesma loja deveriam ir na mesma viagem.
+ */
+export function sharedStores(
+  a: { stops: { storeCode: string }[] },
+  b: { stops: { storeCode: string }[] },
+): string[] {
+  const inB = new Set(b.stops.map((s) => s.storeCode));
+  return [...new Set(a.stops.map((s) => s.storeCode))].filter((code) => inB.has(code));
+}
+
+/** Pares coleta × entrega do mesmo dia com loja em comum, para sinalizar a união. */
+export function routePairs<
+  R extends { id: string; kind: string; day: string; stops: { storeCode: string }[] },
+>(routes: R[]): { coleta: R; entrega: R; stores: string[] }[] {
+  const pairs: { coleta: R; entrega: R; stores: string[] }[] = [];
+  for (const coleta of routes.filter((r) => r.kind === "coleta")) {
+    for (const entrega of routes.filter(
+      (r) => r.kind === "entrega" && r.day === coleta.day,
+    )) {
+      const stores = sharedStores(coleta, entrega);
+      if (stores.length > 0) pairs.push({ coleta, entrega, stores });
+    }
+  }
+  return pairs;
+}

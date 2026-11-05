@@ -116,6 +116,7 @@ describe("resumo do dashboard", () => {
       awaitingPayment: 1,
       awaitingCollection: 1,
       inTransit: 1,
+      atCentral: 0,
       readyForPickup: 0,
       openTickets: 1,
       pendingCharges: 0,

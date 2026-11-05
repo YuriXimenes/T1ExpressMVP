@@ -33,7 +33,7 @@ export type CustodyAction =
 
 export const CUSTODY_ACTIONS: { id: CustodyAction; label: string }[] = [
   { id: "coletado_na_loja", label: "Coletado na loja" },
-  { id: "recebido_na_base", label: "Recebido na base" },
+  { id: "recebido_na_base", label: "Recebido na central" },
   { id: "consolidado", label: "Consolidado" },
   { id: "saiu_para_entrega", label: "Saiu para entrega" },
   { id: "entregue_no_ponto", label: "Entregue no ponto de retirada" },
