@@ -110,9 +110,11 @@ export const STAFF_AREAS: {
   },
   {
     id: "repasses",
+    // Sem tela própria: libera os botões de pagamento (equipe, lojas e clientes) dentro de
+    // Despesas, e a Visão geral do financeiro (quem paga vê o resultado).
     label: "Repasses e pagamentos",
     group: "Financeiro",
-    hrefs: ["/admin/financeiro/repasses"],
+    hrefs: ["/admin/financeiro"],
   },
   {
     id: "sinistros",

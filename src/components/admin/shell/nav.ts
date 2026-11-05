@@ -14,6 +14,7 @@ import {
   MapPin,
   Package,
   Plug,
+  PieChart,
   Receipt,
   Route,
   Scale,
@@ -25,7 +26,6 @@ import {
   Truck,
   UserCog,
   Users,
-  Wallet,
   type LucideIcon,
 } from "lucide-react";
 
@@ -84,45 +84,11 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   {
     label: "Financeiro",
     items: [
+      { href: "/admin/financeiro", label: "Visão geral", icon: PieChart },
       { href: "/admin/financeiro/precos", label: "Preços", icon: BadgeDollarSign },
       { href: "/admin/financeiro/cupons", label: "Cupons", icon: Tag },
-      {
-        href: "/admin/financeiro/despesas",
-        label: "Despesas",
-        icon: Receipt,
-        soon: {
-          delivery: 8,
-          summary: "Controle de gastos da operação.",
-          features: [
-            "Despesas em 4 grupos, com categoria, valor, data e responsável",
-            "Vínculo com rota, pedido ou parceiro",
-            "Fluxo de aprovação",
-          ],
-        },
-      },
-      {
-        href: "/admin/financeiro/repasses",
-        label: "Repasses e pagamentos",
-        icon: Wallet,
-        soon: {
-          delivery: 8,
-          summary: "O que a T1 paga a lojas, entregadores e prestadores.",
-          features: ["Repasses por tipo e período", "Status de pagamento e comprovantes"],
-        },
-      },
-      {
-        href: "/admin/financeiro/sinistros",
-        label: "Sinistros",
-        icon: ShieldAlert,
-        soon: {
-          delivery: 8,
-          summary: "Perdas, danos e indenizações.",
-          features: [
-            "Registro do sinistro ligado ao pedido e ao seguro contratado",
-            "Cálculo e acompanhamento da indenização",
-          ],
-        },
-      },
+      { href: "/admin/financeiro/despesas", label: "Despesas", icon: Receipt },
+      { href: "/admin/financeiro/sinistros", label: "Sinistros", icon: ShieldAlert },
     ],
   },
   {

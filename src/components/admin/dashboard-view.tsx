@@ -8,6 +8,8 @@ import { PeriodFilter, usePeriodFilter } from "@/components/admin/period-filter"
 import { AdminError, fetchDashboardOrders } from "@/lib/admin/api";
 import { summarizeDashboard, type DashboardOrder } from "@/lib/admin/dashboard";
 import { fetchOccurrenceSummary, type OccurrenceSummary } from "@/lib/occurrences/api";
+import { fetchFinanceOverview, type FinanceOverview } from "@/lib/finance/api";
+import { currentMonthKey } from "@/lib/finance/rules";
 
 const count = (n: number) => n.toLocaleString("pt-BR");
 
@@ -51,6 +53,7 @@ export function DashboardView() {
   const [orders, setOrders] = useState<DashboardOrder[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [occurrences, setOccurrences] = useState<OccurrenceSummary | null>(null);
+  const [finance, setFinance] = useState<FinanceOverview | null>(null);
   const periodFilter = usePeriodFilter("30d");
   const { period } = periodFilter;
 
@@ -59,6 +62,10 @@ export function DashboardView() {
     // Ocorrências e pontos (0018): sem a migração ou sem permissão, fica "—".
     fetchOccurrenceSummary()
       .then((data) => !cancelled && setOccurrences(data))
+      .catch(() => undefined);
+    // Financeiro (0022) do mês corrente: sem a migração ou sem permissão, fica "—".
+    fetchFinanceOverview(currentMonthKey())
+      .then((data) => !cancelled && setFinance(data))
       .catch(() => undefined);
     fetchDashboardOrders()
       .then((data) => {
@@ -218,11 +225,48 @@ export function DashboardView() {
               value={formatBRL(summary.general.revenueBRL)}
               detail="já descontados os cupons"
             />
-            <PendingTile label="Custos operacionais" module="o Financeiro" />
-            <PendingTile label="Despesas" module="o Financeiro" />
-            <PendingTile label="Repasses" module="o Financeiro" />
-            <PendingTile label="Margem" module="o Financeiro" />
-            <PendingTile label="Sinistros" module="o Financeiro" />
+            <StatTile
+              label="Custos operacionais"
+              value={finance ? formatBRL(finance.month.costs.fuel) : "—"}
+              detail="combustível das viagens · mês atual"
+            />
+            <StatTile
+              label="Despesas"
+              value={finance ? formatBRL(finance.month.costs.expensesTotal) : "—"}
+              detail={
+                finance
+                  ? `${finance.payables.pendingExpenses} aguardando aprovação · mês atual`
+                  : "mês atual"
+              }
+            />
+            <StatTile
+              label="Repasses"
+              value={
+                finance
+                  ? formatBRL(finance.month.costs.stores + finance.month.costs.team)
+                  : "—"
+              }
+              detail="lojas e equipe · mês atual"
+            />
+            <StatTile
+              label="Margem"
+              value={finance ? formatBRL(finance.month.margin) : "—"}
+              detail={
+                finance?.month.marginPct !== undefined &&
+                finance?.month.marginPct !== null
+                  ? `${finance.month.marginPct}% da receita · mês atual`
+                  : "mês atual"
+              }
+            />
+            <StatTile
+              label="Sinistros"
+              value={finance ? formatBRL(finance.payables.claims) : "—"}
+              detail={
+                finance
+                  ? `aprovados a pagar · ${finance.payables.openClaims} em análise`
+                  : "a pagar"
+              }
+            />
           </Block>
 
           <Block title="Desempenho" subtitle="Prazos e qualidade da operação">

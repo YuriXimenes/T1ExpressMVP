@@ -342,6 +342,46 @@ export function OcorrenciaDetailView({ id }: { id: string }) {
             )}
           </Card>
 
+          {((occ.refunds ?? []).length > 0 || (occ.claims ?? []).length > 0) && (
+            <Card className="gap-2 p-5 text-sm">
+              <h2 className="font-semibold text-slate-900">Financeiro</h2>
+              {(occ.refunds ?? []).map((rf, i) => (
+                <p key={`rf${i}`} className="text-slate-700">
+                  Reembolso {formatBRL(rf.amount)} ·{" "}
+                  {rf.status === "pago"
+                    ? "pago"
+                    : rf.status === "cancelado"
+                      ? "cancelado"
+                      : "a pagar"}{" "}
+                  ·{" "}
+                  <Link
+                    href="/admin/financeiro/despesas"
+                    className="text-brand-700 hover:underline"
+                  >
+                    Despesas
+                  </Link>
+                </p>
+              ))}
+              {(occ.claims ?? []).map((cl) => (
+                <p key={cl.number} className="text-slate-700">
+                  <Link
+                    href={
+                      cl.id
+                        ? `/admin/financeiro/sinistros/${cl.id}`
+                        : "/admin/financeiro/sinistros"
+                    }
+                    className="text-brand-700 font-medium hover:underline"
+                  >
+                    Sinistro SN-{cl.number}
+                  </Link>{" "}
+                  · {cl.status}
+                  {cl.approvedAmount !== undefined &&
+                    ` · ${formatBRL(cl.approvedAmount)}`}
+                </p>
+              ))}
+            </Card>
+          )}
+
           <Card className="gap-3 p-5">
             <h2 className="font-semibold text-slate-900">Resoluções</h2>
             {resolutions.length === 0 && (
