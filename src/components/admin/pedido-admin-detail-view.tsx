@@ -13,6 +13,7 @@ import { ConferenciaCard } from "@/components/admin/pedidos/conferencia-card";
 import { CustodyCard } from "@/components/admin/pedidos/custody-card";
 import { LabelCard } from "@/components/admin/pedidos/label-card";
 import { OrderRoutesCard } from "@/components/admin/pedidos/order-routes-card";
+import { OrderOccurrencesCard } from "@/components/admin/pedidos/order-occurrences-card";
 import { useCatalog } from "@/lib/catalog/provider";
 import { getOrderStatusLabel } from "@/lib/order-helpers";
 import { allowedTargets } from "@/lib/admin/order-moves";
@@ -346,6 +347,7 @@ export function PedidoAdminDetailView({ orderId }: { orderId: string }) {
                 onChanged={refreshAfterHandling}
               />
               <OrderRoutesCard orderId={order.id} refreshKey={handling} />
+              <OrderOccurrencesCard orderId={order.id} />
             </>
           )}
           <OrderItemsBreakdown

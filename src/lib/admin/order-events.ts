@@ -18,7 +18,9 @@ export type OrderEventKind =
   | "items_checked"
   | "custody"
   | "route"
-  | "stop_failed";
+  | "stop_failed"
+  | "occurrence"
+  | "pickup_deadline";
 
 /** "store": lojista confirmando a retirada pelo QR do pacote. */
 export type OrderEventActorKind = "customer" | "admin" | "store" | "driver" | "system";
@@ -55,6 +57,8 @@ export const EVENT_KIND_LABELS: Record<OrderEventKind, string> = {
   custody: "Custódia",
   route: "Rota",
   stop_failed: "Parada não realizada",
+  occurrence: "Ocorrência",
+  pickup_deadline: "Prazo de retirada",
 };
 
 export const ACTOR_KIND_LABELS: Record<OrderEventActorKind, string> = {
@@ -191,6 +195,28 @@ export function describeEvent(
         title:
           event.toValue === "entrega" ? "Entrega não realizada" : "Coleta não realizada",
         detail: join(typeof d.storeCode === "string" && storeName(d.storeCode)),
+      };
+    case "occurrence": {
+      const verb: Record<string, string> = {
+        aberta: "aberta",
+        resolvida: "resolvida",
+        encerrada: "encerrada",
+        reaberta: "reaberta",
+      };
+      return {
+        title: `Ocorrência ${typeof d.number === "number" ? `OC-${d.number} ` : ""}${
+          verb[event.toValue ?? ""] ?? event.toValue ?? ""
+        }`.trim(),
+        detail: join(typeof d.type === "string" && d.type),
+      };
+    }
+    case "pickup_deadline":
+      return {
+        title: "Prazo de retirada prorrogado",
+        detail: join(
+          event.toValue &&
+            `até ${new Date(`${event.toValue}T12:00:00`).toLocaleDateString("pt-BR")}`,
+        ),
       };
     case "custody":
       return {

@@ -68,33 +68,8 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { href: "/admin/pedidos/coletas", label: "Planejamento", icon: CalendarClock },
       { href: "/admin/pedidos/rotas", label: "Rotas e viagens", icon: Route },
       { href: "/admin/pedidos/veiculos", label: "Veículos e combustível", icon: Car },
-      {
-        href: "/admin/pedidos/pontos",
-        label: "Pontos de retirada",
-        icon: MapPin,
-        soon: {
-          delivery: 6,
-          summary: "O que está guardado em cada T1 Point.",
-          features: [
-            "Pedidos armazenados por ponto e há quanto tempo estão esperando",
-            "Retirados na semana e pedidos vencidos",
-          ],
-        },
-      },
-      {
-        href: "/admin/pedidos/ocorrencias",
-        label: "Ocorrências",
-        icon: TriangleAlert,
-        soon: {
-          delivery: 6,
-          summary: "Registro e tratamento de problemas da operação.",
-          features: [
-            "Ligada a pedido, coleta, rota, loja, entregador ou pacote",
-            "Categoria, gravidade, responsável, prazo e evidências",
-            "Status e histórico de tratamento",
-          ],
-        },
-      },
+      { href: "/admin/pedidos/pontos", label: "Pontos de retirada", icon: MapPin },
+      { href: "/admin/pedidos/ocorrencias", label: "Ocorrências", icon: TriangleAlert },
     ],
   },
   {

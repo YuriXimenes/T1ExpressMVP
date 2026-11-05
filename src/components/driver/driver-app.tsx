@@ -2,7 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, CheckCircle2, LogOut, MapPin, Navigation, QrCode } from "lucide-react";
+import {
+  Camera,
+  CheckCircle2,
+  LogOut,
+  MapPin,
+  Navigation,
+  QrCode,
+  TriangleAlert,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -45,6 +53,10 @@ import {
   stopReasonLabel,
 } from "@/lib/routes/planning";
 import { cn } from "@/lib/utils";
+import {
+  DriverOccurrencesList,
+  DriverReportDialog,
+} from "@/components/driver/driver-occurrences";
 
 const errorText = (err: unknown, fallback: string) =>
   err instanceof DriverError ? err.message : fallback;
@@ -81,6 +93,7 @@ export function DriverApp() {
   const [access, setAccess] = useState<DriverAccess | null | undefined>(undefined);
   const [trips, setTrips] = useState<DriverTrip[] | null>(null);
   const [openTripId, setOpenTripId] = useState<string | null>(null);
+  const [showOccurrences, setShowOccurrences] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function load() {
@@ -155,9 +168,24 @@ export function DriverApp() {
           </Card>
         )}
 
-        {access && trips && !trip && (
+        {access && showOccurrences && (
+          <DriverOccurrencesList onBack={() => setShowOccurrences(false)} />
+        )}
+
+        {access && trips && !trip && !showOccurrences && (
           <>
-            <h1 className="text-lg font-semibold text-slate-900">Suas viagens</h1>
+            <div className="flex items-center justify-between gap-2">
+              <h1 className="text-lg font-semibold text-slate-900">Suas viagens</h1>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setShowOccurrences(true)}
+              >
+                <TriangleAlert className="h-4 w-4" aria-hidden="true" />
+                Minhas ocorrências
+              </Button>
+            </div>
             {trips.length === 0 && (
               <p className="text-sm text-slate-500">
                 Nenhuma viagem enviada para você agora.
@@ -204,7 +232,7 @@ export function DriverApp() {
           </>
         )}
 
-        {trip && (
+        {trip && !showOccurrences && (
           <TripScreen
             trip={trip}
             onBack={() => setOpenTripId(null)}
@@ -231,6 +259,8 @@ function TripScreen({
     stop: DriverStop;
     kind: "coleta" | "entrega";
   } | null>(null);
+  const [reportFor, setReportFor] = useState<DriverStop | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -294,6 +324,7 @@ function TripScreen({
           {error}
         </p>
       )}
+      {notice && <p className="text-sm text-emerald-700">{notice}</p>}
 
       {trip.status === "enviada" && (
         <Button type="button" size="lg" onClick={() => setOdometerFor("start")}>
@@ -371,6 +402,20 @@ function TripScreen({
                       {route.kind === "coleta" ? "Registrar coleta" : "Registrar entrega"}
                     </Button>
                   )}
+                  {(running || trip.status === "concluida") && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setNotice(null);
+                        setReportFor(s);
+                      }}
+                    >
+                      <TriangleAlert className="h-4 w-4" aria-hidden="true" />
+                      Relatar ocorrência
+                    </Button>
+                  )}
                 </div>
               </Card>
             );
@@ -390,6 +435,18 @@ function TripScreen({
             ? `Faltam ${pending.length} parada(s) para finalizar`
             : "Finalizar viagem"}
         </Button>
+      )}
+      {reportFor && (
+        <DriverReportDialog
+          stop={reportFor}
+          onClose={() => setReportFor(null)}
+          onCreated={(number) => {
+            setReportFor(null);
+            setNotice(
+              `Ocorrência OC-${number} enviada. Acompanhe em “Minhas ocorrências”.`,
+            );
+          }}
+        />
       )}
       {trip.status === "concluida" && (
         <p className="flex items-center gap-2 text-sm text-emerald-700">

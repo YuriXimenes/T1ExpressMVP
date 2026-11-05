@@ -7,6 +7,7 @@ import { StatTile, formatNumber, formatPct } from "@/components/admin/survey-cha
 import { PeriodFilter, usePeriodFilter } from "@/components/admin/period-filter";
 import { AdminError, fetchDashboardOrders } from "@/lib/admin/api";
 import { summarizeDashboard, type DashboardOrder } from "@/lib/admin/dashboard";
+import { fetchOccurrenceSummary, type OccurrenceSummary } from "@/lib/occurrences/api";
 
 const count = (n: number) => n.toLocaleString("pt-BR");
 
@@ -49,11 +50,16 @@ function PendingTile({ label, module }: { label: string; module: string }) {
 export function DashboardView() {
   const [orders, setOrders] = useState<DashboardOrder[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [occurrences, setOccurrences] = useState<OccurrenceSummary | null>(null);
   const periodFilter = usePeriodFilter("30d");
   const { period } = periodFilter;
 
   useEffect(() => {
     let cancelled = false;
+    // Ocorrências e pontos (0018): sem a migração ou sem permissão, fica "—".
+    fetchOccurrenceSummary()
+      .then((data) => !cancelled && setOccurrences(data))
+      .catch(() => undefined);
     fetchDashboardOrders()
       .then((data) => {
         if (!cancelled) setOrders(data);
@@ -231,7 +237,24 @@ export function DashboardView() {
             <PendingTile label="Paradas não realizadas" module="Coletas e rotas" />
             <PendingTile label="Custo por rota" module="Coletas e rotas" />
             <PendingTile label="Divergências na conferência" module="a Conferência" />
-            <PendingTile label="Ocorrências" module="as Ocorrências" />
+            <StatTile
+              label="Ocorrências em aberto"
+              value={
+                occurrences
+                  ? formatNumber(occurrences.aberta + occurrences.emAnalise)
+                  : "—"
+              }
+              detail={
+                occurrences
+                  ? `${formatNumber(occurrences.overdue)} com prazo vencido · agora`
+                  : "abertas e em análise"
+              }
+            />
+            <StatTile
+              label="Prazo de guarda vencido"
+              value={occurrences ? formatNumber(occurrences.guardExpired) : "—"}
+              detail="pacotes esperando retirada além do prazo"
+            />
           </Block>
         </>
       )}
