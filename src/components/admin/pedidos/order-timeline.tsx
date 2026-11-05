@@ -5,6 +5,7 @@ import {
   Ban,
   CheckCircle2,
   CircleDollarSign,
+  CalendarPlus,
   CircleSlash,
   ClipboardCheck,
   FilePlus2,
@@ -13,6 +14,7 @@ import {
   Route,
   ShieldCheck,
   Store,
+  TriangleAlert,
   Truck,
   type LucideIcon,
 } from "lucide-react";
@@ -41,6 +43,8 @@ export const EVENT_ICONS: Record<OrderEventKind, LucideIcon> = {
   custody: Truck,
   route: Route,
   stop_failed: CircleSlash,
+  occurrence: TriangleAlert,
+  pickup_deadline: CalendarPlus,
 };
 
 export function formatEventTime(iso: string): string {

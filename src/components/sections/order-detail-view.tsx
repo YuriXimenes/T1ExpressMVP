@@ -31,6 +31,7 @@ import { useOrders, OrderError } from "@/lib/orders/store";
 import { makePedidoGroup, computeTotalPaidBRL } from "@/lib/order-helpers";
 import { useCatalog } from "@/lib/catalog/provider";
 import { cn } from "@/lib/utils";
+import { CustomerOccurrencesCard } from "@/components/occurrences/customer-occurrences-card";
 import type { PedidoGroup } from "@/lib/types/order";
 
 function actionErrorMessage(err: unknown) {
@@ -459,6 +460,10 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
               </div>
             )}
           </Card>
+
+          {order.status !== "pending-payment" && (
+            <CustomerOccurrencesCard orderId={order.id} />
+          )}
         </div>
 
         <div className="space-y-4">
