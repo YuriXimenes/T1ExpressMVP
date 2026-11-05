@@ -1,5 +1,8 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useCan } from "@/lib/admin/access-provider";
+import { PartnerError, startOnboarding } from "@/lib/partners/api";
 import { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -24,6 +27,8 @@ function LeadsTab() {
   const [error, setError] = useState<string | null>(null);
   const [onlyPending, setOnlyPending] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const router = useRouter();
+  const canStartKyc = useCan("kyc", "create");
 
   function load() {
     fetchLeads()
@@ -33,6 +38,21 @@ function LeadsTab() {
       );
   }
   useEffect(load, []);
+
+  async function startKyc(lead: AdminLead) {
+    setBusyId(lead.id);
+    try {
+      const created = await startOnboarding(lead.id);
+      router.push(`/admin/parceiros/kyc/${created.id}`);
+    } catch (err) {
+      setError(
+        err instanceof PartnerError || err instanceof AdminError
+          ? err.message
+          : "Não foi possível iniciar o onboarding.",
+      );
+      setBusyId(null);
+    }
+  }
 
   async function toggle(lead: AdminLead) {
     setBusyId(lead.id);
@@ -80,14 +100,26 @@ function LeadsTab() {
                       .join(" e ")}
                   </p>
                 </div>
-                <Button
-                  size="sm"
-                  variant={lead.contacted ? "outline" : "default"}
-                  disabled={busyId === lead.id}
-                  onClick={() => void toggle(lead)}
-                >
-                  {lead.contacted ? "Contatado ✓" : "Marcar como contatado"}
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  {canStartKyc && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={busyId === lead.id}
+                      onClick={() => void startKyc(lead)}
+                    >
+                      Iniciar onboarding
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant={lead.contacted ? "outline" : "default"}
+                    disabled={busyId === lead.id}
+                    onClick={() => void toggle(lead)}
+                  >
+                    {lead.contacted ? "Contatado ✓" : "Marcar como contatado"}
+                  </Button>
+                </div>
               </div>
               <div className="mt-3 grid gap-1 text-sm text-slate-600 sm:grid-cols-2">
                 <p>{lead.contactName}</p>

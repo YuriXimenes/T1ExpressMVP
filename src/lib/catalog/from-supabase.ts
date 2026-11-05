@@ -27,6 +27,8 @@ interface StoreRow {
   logo_on_dark: boolean;
   is_pickup_point: boolean;
   pickup_sort_order: number | null;
+  /** 0020: loja aprovada pelo KYC nasce oculta até o admin publicar. */
+  published?: boolean | null;
 }
 
 interface RouteRow {
@@ -139,7 +141,7 @@ export async function loadCatalogFromSupabase(): Promise<Catalog> {
       supabase
         .from("stores")
         .select(
-          "id, code, name, address, neighborhood, city, state, lat, lng, logo_path, logo_on_dark, is_pickup_point, pickup_sort_order",
+          "id, code, name, address, neighborhood, city, state, lat, lng, logo_path, logo_on_dark, is_pickup_point, pickup_sort_order, published",
         )
         .order("code"),
       supabase
@@ -158,7 +160,8 @@ export async function loadCatalogFromSupabase(): Promise<Catalog> {
         .maybeSingle(),
     ]);
 
-  const storeRows = must<StoreRow>(stores, "stores");
+  // Loja oculta (ainda em configuração) não aparece para os clientes.
+  const storeRows = must<StoreRow>(stores, "stores").filter((s) => s.published !== false);
   const routeRows = must<RouteRow>(routes, "freight_routes");
   const flatRateRows = must<{ carrier: string; flat_rate_brl: number | string }>(
     flatRates,

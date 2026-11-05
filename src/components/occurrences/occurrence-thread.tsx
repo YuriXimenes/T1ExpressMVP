@@ -109,7 +109,7 @@ export function OccurrenceThread({
   onChanged,
 }: {
   occurrence: Occurrence;
-  viewer: "admin" | "customer" | "driver";
+  viewer: "admin" | "customer" | "driver" | "store";
   canWrite?: boolean;
   onChanged: () => void | Promise<void>;
 }) {

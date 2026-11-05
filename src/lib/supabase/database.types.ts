@@ -827,6 +827,7 @@ export type Database = {
           name: string;
           neighborhood: string | null;
           pickup_sort_order: number | null;
+          published: boolean;
           state: string;
         };
         Insert: {
@@ -843,6 +844,7 @@ export type Database = {
           name: string;
           neighborhood?: string | null;
           pickup_sort_order?: number | null;
+          published?: boolean;
           state: string;
         };
         Update: {
@@ -859,6 +861,7 @@ export type Database = {
           name?: string;
           neighborhood?: string | null;
           pickup_sort_order?: number | null;
+          published?: boolean;
           state?: string;
         };
         Relationships: [];

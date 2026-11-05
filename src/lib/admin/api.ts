@@ -1060,13 +1060,15 @@ export interface AdminStore {
   logoOnDark: boolean;
   isPickupPoint: boolean;
   pickupSortOrder?: number;
+  /** Aparece no site (0020). Loja aprovada pelo KYC nasce oculta. */
+  published: boolean;
 }
 
 export async function fetchStores(): Promise<AdminStore[]> {
   const { data, error } = await createBrowserClient()
     .from("stores")
     .select(
-      "id, code, name, address, neighborhood, city, state, lat, lng, logo_path, logo_on_dark, is_pickup_point, pickup_sort_order",
+      "id, code, name, address, neighborhood, city, state, lat, lng, logo_path, logo_on_dark, is_pickup_point, pickup_sort_order, published",
     )
     .order("code");
   if (error) throw friendlyAdminError(error);
@@ -1084,6 +1086,7 @@ export async function fetchStores(): Promise<AdminStore[]> {
     logoOnDark: r.logo_on_dark,
     isPickupPoint: r.is_pickup_point,
     pickupSortOrder: r.pickup_sort_order ?? undefined,
+    published: r.published ?? true,
   }));
 }
 
