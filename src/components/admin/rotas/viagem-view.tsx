@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { TripLiveMap } from "@/components/admin/rotas/trip-live-map";
 import Link from "next/link";
 import { ArrowDown, ArrowLeft, ArrowUp, MapPin, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -316,6 +317,10 @@ export function ViagemView({ tripId }: { tripId: string }) {
           </p>
         </Card>
       </div>
+
+      {(trip.status === "em_andamento" || trip.status === "concluida") && (
+        <TripLiveMap tripId={trip.id} live={trip.status === "em_andamento"} />
+      )}
 
       {trip.routes.map((route) => (
         <Card key={route.id} className="gap-3 p-5">

@@ -34,6 +34,7 @@ import { AdminError } from "@/lib/admin/api";
 import {
   fetchTeam,
   saveTeamMember,
+  setTeamMemberEarnings,
   type TeamMember,
   type TeamMemberInput,
 } from "@/lib/admin/people-api";
@@ -66,6 +67,7 @@ export function EquipeView() {
   const [form, setForm] = useState<TeamMemberInput>(EMPTY);
   const [rules, setRules] = useState<RuleDraft[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
+  const [showEarnings, setShowEarnings] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function load() {
@@ -98,6 +100,7 @@ export function EquipeView() {
 
   function open(member: TeamMember | "new") {
     setFormError(null);
+    setShowEarnings(member !== "new" && member.showEarnings);
     if (member === "new") {
       setForm(EMPTY);
       setRules([]);
@@ -141,7 +144,15 @@ export function EquipeView() {
     setBusy(true);
     setFormError(null);
     try {
-      await saveTeamMember(editing === "new" ? null : editing.id, form, parsed);
+      const id = await saveTeamMember(
+        editing === "new" ? null : editing.id,
+        form,
+        parsed,
+      );
+      // Ganhos no app: só entregador; grava só se mudou.
+      const want = form.kind === "entregador" && showEarnings;
+      const had = editing !== "new" && editing.showEarnings;
+      if (want !== had) await setTeamMemberEarnings(id, want);
       setEditing(null);
       await load();
     } catch (err) {
@@ -249,6 +260,11 @@ export function EquipeView() {
                   {member.phone && ` · ${member.phone}`}
                 </p>
                 <p className="text-xs text-slate-500">{payRulesText(member.payRules)}</p>
+                {member.kind === "entregador" && member.showEarnings && (
+                  <p className="w-fit rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                    Vê os ganhos no app
+                  </p>
+                )}
                 {member.linkedUser && (
                   <p className="text-xs text-slate-400">
                     Conta: {member.linkedUser.email}
@@ -374,6 +390,28 @@ export function EquipeView() {
                   onChange={(e) => set({ notes: e.target.value })}
                 />
               </Field>
+
+              {form.kind === "entregador" && (
+                <label className="flex items-start gap-2.5 rounded-lg border border-slate-200 p-3">
+                  <input
+                    type="checkbox"
+                    className="accent-brand-600 mt-0.5 h-4 w-4"
+                    checked={showEarnings}
+                    disabled={readOnly}
+                    onChange={(e) => setShowEarnings(e.target.checked)}
+                  />
+                  <span>
+                    <span className="block text-sm font-medium text-slate-900">
+                      Mostrar ganhos no app do entregador
+                    </span>
+                    <span className="block text-xs text-slate-500">
+                      Ele passa a ver a aba Ganhos: valor do mês até agora (pela
+                      remuneração abaixo), cada viagem, avulsos, data do pagamento e
+                      comprovantes.
+                    </span>
+                  </span>
+                </label>
+              )}
 
               <div className="flex flex-col gap-2 rounded-lg border border-slate-200 p-3">
                 <div className="flex items-center justify-between gap-2">

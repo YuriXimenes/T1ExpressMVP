@@ -5,7 +5,11 @@ import { useRouter } from "next/navigation";
 import {
   Camera,
   CheckCircle2,
+  History,
+  Home,
   LogOut,
+  Map as MapIcon,
+  Wallet,
   MapPin,
   Navigation,
   QrCode,
@@ -37,12 +41,14 @@ import {
   DriverError,
   currentPosition,
   fetchDriverAccess,
+  fetchDriverEarnings,
   fetchDriverTrips,
   finishTrip,
   recordStop,
   startTrip,
   uploadStopPhoto,
   type DriverAccess,
+  type DriverEarnings as DriverEarningsData,
   type DriverStop,
   type DriverTrip,
 } from "@/lib/driver/api";
@@ -57,6 +63,11 @@ import {
   DriverOccurrencesList,
   DriverReportDialog,
 } from "@/components/driver/driver-occurrences";
+import { DriverMapTab } from "@/components/driver/driver-map-tab";
+import { DriverHistory } from "@/components/driver/driver-history";
+import { DriverEarnings } from "@/components/driver/driver-earnings";
+import { useGpsTracking, type GpsStatus } from "@/components/driver/use-gps-tracking";
+import { agoLabel, mapTrip, splitTodayTrips } from "@/lib/driver/rules";
 
 const errorText = (err: unknown, fallback: string) =>
   err instanceof DriverError ? err.message : fallback;
@@ -86,21 +97,46 @@ function mapsUrl(stop: DriverStop): string {
   return `https://www.google.com/maps/dir/?api=1&destination=${destination}`;
 }
 
-/** Área do entregador: viagens do dia, coletas, entregas e fechamento. */
+type DriverTab = "hoje" | "mapa" | "historico" | "ganhos";
+
+const GPS_TEXT: Record<GpsStatus, string> = {
+  desligado: "",
+  procurando: "Procurando o sinal do GPS...",
+  ativo: "GPS ativo",
+  negado:
+    "Localização bloqueada. Libere a localização deste site no navegador para a T1 acompanhar a viagem.",
+  indisponivel: "Este celular não informa a localização pelo navegador.",
+};
+
+/** Área do entregador: hoje, mapa, histórico e ganhos (quando liberado). */
 export function DriverApp() {
   const router = useRouter();
   const { isReady, isLoggedIn, user, logout } = useAuth();
   const [access, setAccess] = useState<DriverAccess | null | undefined>(undefined);
   const [trips, setTrips] = useState<DriverTrip[] | null>(null);
+  const [earnings, setEarnings] = useState<DriverEarningsData>({ enabled: false });
+  const [tab, setTab] = useState<DriverTab>("hoje");
   const [openTripId, setOpenTripId] = useState<string | null>(null);
   const [showOccurrences, setShowOccurrences] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [today, setToday] = useState("");
+  const [now, setNow] = useState(0);
 
   async function load() {
     try {
       const me = await fetchDriverAccess();
       setAccess(me);
-      if (me) setTrips(await fetchDriverTrips());
+      if (me) {
+        const [list, earn] = await Promise.all([
+          fetchDriverTrips(),
+          fetchDriverEarnings(),
+        ]);
+        setTrips(list);
+        setEarnings(earn);
+        setToday(
+          new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" }),
+        );
+      }
     } catch (err) {
       setError(errorText(err, "Não foi possível carregar as suas viagens."));
     }
@@ -117,16 +153,85 @@ export function DriverApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isReady, isLoggedIn]);
 
+  const running = trips?.find((t) => t.status === "em_andamento");
+  const gps = useGpsTracking(running?.id);
+
+  // Relógio do aviso "último envio há X" (sem Date.now() durante o render).
+  useEffect(() => {
+    if (!gps.lastSentAt) return;
+    const tick = () => setNow(Date.now());
+    queueMicrotask(tick);
+    const timer = window.setInterval(tick, 15_000);
+    return () => window.clearInterval(timer);
+  }, [gps.lastSentAt]);
+
   async function signOut() {
     await logout();
     router.replace("/login?next=%2Fentregador");
   }
 
   const trip = trips?.find((t) => t.id === openTripId);
+  const split = splitTodayTrips(trips ?? [], today);
+  const tabs: { id: DriverTab; label: string; icon: typeof Home }[] = [
+    { id: "hoje", label: "Hoje", icon: Home },
+    { id: "mapa", label: "Mapa", icon: MapIcon },
+    { id: "historico", label: "Histórico", icon: History },
+    ...(earnings.enabled
+      ? [{ id: "ganhos" as const, label: "Ganhos", icon: Wallet }]
+      : []),
+  ];
+
+  function tripCard(t: DriverTrip) {
+    const stops = t.routes.flatMap((r) => r.stops);
+    const done = stops.filter(
+      (s) => s.status !== "aguardando" && s.status !== "em_deslocamento",
+    ).length;
+    return (
+      <button
+        key={t.id}
+        type="button"
+        onClick={() => setOpenTripId(t.id)}
+        className={cn(
+          "flex flex-col gap-1 rounded-xl border bg-white p-4 text-left",
+          t.status === "em_andamento"
+            ? "border-brand-300 ring-brand-100 ring-2"
+            : "border-slate-200",
+        )}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <p className="font-semibold text-slate-900 capitalize">
+            {dayLabel(t.day)}
+            {split.isLate(t) && (
+              <span className="ml-1.5 text-xs font-medium text-amber-700 normal-case">
+                · de outro dia
+              </span>
+            )}
+          </p>
+          <Badge variant={t.status === "em_andamento" ? "default" : "secondary"}>
+            {TRIP_STATUS_LABELS[t.status] ?? t.status}
+          </Badge>
+        </div>
+        <p className="text-sm text-slate-600">
+          {t.routes
+            .map(
+              (r) =>
+                `${r.kind === "coleta" ? "Coletas" : "Entregas"} (${r.stops.length})`,
+            )
+            .join(" + ")}
+          {t.plannedStartAt && ` · saída ${time(t.plannedStartAt)}`}
+        </p>
+        <p className="text-xs text-slate-500">
+          {done} de {stops.length} paradas registradas
+          {t.vehicle && ` · ${t.vehicle}`}
+          {t.status === "concluida" && t.actualKm !== undefined && ` · ${t.actualKm} km`}
+        </p>
+      </button>
+    );
+  }
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col bg-slate-50">
-      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
+      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
         <div className="flex items-center gap-2">
           <span className="bg-brand-600 flex h-8 w-8 items-center justify-center rounded-lg text-xs font-bold text-white">
             T1
@@ -144,7 +249,32 @@ export function DriverApp() {
         )}
       </header>
 
-      <main id="main-content" className="flex flex-1 flex-col gap-4 p-4">
+      {running && gps.status !== "desligado" && (
+        <div
+          role="status"
+          className={cn(
+            "flex items-start gap-2 border-b px-4 py-2 text-xs",
+            gps.status === "ativo"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+              : gps.status === "procurando"
+                ? "border-slate-200 bg-white text-slate-600"
+                : "border-amber-200 bg-amber-50 text-amber-800",
+          )}
+        >
+          <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <span>
+            {GPS_TEXT[gps.status]}
+            {gps.status === "ativo" &&
+              gps.lastSentAt &&
+              now > 0 &&
+              ` · último envio ${agoLabel(new Date(gps.lastSentAt).toISOString(), now)}`}
+            {gps.status === "ativo" &&
+              ". Deixe o app aberto na tela: com o celular bloqueado o envio pausa e volta ao abrir."}
+          </span>
+        </div>
+      )}
+
+      <main id="main-content" className="flex flex-1 flex-col gap-4 p-4 pb-24">
         {error && (
           <p
             role="alert"
@@ -168,14 +298,14 @@ export function DriverApp() {
           </Card>
         )}
 
-        {access && showOccurrences && (
+        {access && tab === "hoje" && showOccurrences && (
           <DriverOccurrencesList onBack={() => setShowOccurrences(false)} />
         )}
 
-        {access && trips && !trip && !showOccurrences && (
+        {access && tab === "hoje" && trips && !trip && !showOccurrences && (
           <>
             <div className="flex items-center justify-between gap-2">
-              <h1 className="text-lg font-semibold text-slate-900">Suas viagens</h1>
+              <h1 className="text-lg font-semibold text-slate-900">Hoje</h1>
               <Button
                 type="button"
                 size="sm"
@@ -188,58 +318,66 @@ export function DriverApp() {
             </div>
             {trips.length === 0 && (
               <p className="text-sm text-slate-500">
-                Nenhuma viagem enviada para você agora.
+                Nenhuma viagem para hoje. Viagens anteriores ficam no Histórico.
               </p>
             )}
-            {trips.map((t) => {
-              const stops = t.routes.flatMap((r) => r.stops);
-              const done = stops.filter(
-                (s) => s.status !== "aguardando" && s.status !== "em_deslocamento",
-              ).length;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setOpenTripId(t.id)}
-                  className="flex flex-col gap-1 rounded-xl border border-slate-200 bg-white p-4 text-left"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="font-semibold text-slate-900 capitalize">
-                      {dayLabel(t.day)}
-                    </p>
-                    <Badge
-                      variant={t.status === "em_andamento" ? "default" : "secondary"}
-                    >
-                      {TRIP_STATUS_LABELS[t.status] ?? t.status}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-slate-600">
-                    {t.routes
-                      .map(
-                        (r) =>
-                          `${r.kind === "coleta" ? "Coletas" : "Entregas"} (${r.stops.length})`,
-                      )
-                      .join(" + ")}
-                    {t.plannedStartAt && ` · saída ${time(t.plannedStartAt)}`}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {done} de {stops.length} paradas registradas
-                    {t.vehicle && ` · ${t.vehicle}`}
-                  </p>
-                </button>
-              );
-            })}
+            {split.showSections && split.todo.length > 0 && (
+              <h2 className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                A fazer ({split.todo.length})
+              </h2>
+            )}
+            {split.todo.map(tripCard)}
+            {split.showSections && split.done.length > 0 && (
+              <h2 className="mt-2 text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                Concluídas ({split.done.length})
+              </h2>
+            )}
+            {split.done.map(tripCard)}
           </>
         )}
 
-        {trip && !showOccurrences && (
+        {access && tab === "hoje" && trip && !showOccurrences && (
           <TripScreen
             trip={trip}
             onBack={() => setOpenTripId(null)}
             onChanged={async () => setTrips(await fetchDriverTrips())}
           />
         )}
+
+        {access && tab === "mapa" && (
+          <DriverMapTab trip={mapTrip(trips ?? [])} gps={gps} />
+        )}
+        {access && tab === "historico" && <DriverHistory />}
+        {access && tab === "ganhos" && earnings.enabled && (
+          <DriverEarnings months={earnings.months} />
+        )}
       </main>
+
+      {access && (
+        <nav
+          aria-label="Seções"
+          className="fixed inset-x-0 bottom-0 z-20 mx-auto flex w-full max-w-lg border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)]"
+        >
+          {tabs.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => {
+                setTab(id);
+                if (id === "hoje") setShowOccurrences(false);
+              }}
+              aria-current={tab === id ? "page" : undefined}
+              className={cn(
+                "flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium",
+                tab === id ? "text-brand-700" : "text-slate-500",
+              )}
+            >
+              <Icon className="h-5 w-5" aria-hidden="true" />
+              {label}
+            </button>
+          ))}
+        </nav>
+      )}
     </div>
   );
 }

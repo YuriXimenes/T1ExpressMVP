@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { Clock } from "lucide-react";
 import { formatBRL } from "@/components/shared/price";
 import { StatTile, formatNumber, formatPct } from "@/components/admin/survey-charts";
 import { PeriodFilter, usePeriodFilter } from "@/components/admin/period-filter";
@@ -13,6 +12,8 @@ import { fetchFinanceOverview, type FinanceOverview } from "@/lib/finance/api";
 import { currentMonthKey } from "@/lib/finance/rules";
 import { fetchMetricsSummary, type MetricsSummary } from "@/lib/metrics/api";
 import { rate } from "@/lib/metrics/rules";
+import { fetchDashboardOps, type DashboardOps } from "@/lib/routes/api";
+import { stopReasonLabel } from "@/lib/routes/planning";
 
 const count = (n: number) => n.toLocaleString("pt-BR");
 
@@ -43,20 +44,6 @@ function Block({
   );
 }
 
-/** Indicador que depende de um módulo ainda não construído: sem número inventado. */
-function PendingTile({ label, module }: { label: string; module: string }) {
-  return (
-    <div className="flex min-w-0 flex-col gap-1 rounded-xl border border-dashed border-slate-300 p-4">
-      <span className="text-xs font-medium text-slate-500">{label}</span>
-      <span className="text-2xl font-semibold text-slate-300">—</span>
-      <span className="flex items-center gap-1 text-xs text-slate-400">
-        <Clock className="h-3 w-3 shrink-0" aria-hidden="true" />
-        Chega com {module}
-      </span>
-    </div>
-  );
-}
-
 export function DashboardView() {
   const [orders, setOrders] = useState<DashboardOrder[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +55,20 @@ export function DashboardView() {
     null,
   );
   const metricsKey = `${period.from ?? ""}|${period.to ?? ""}`;
+  const [ops, setOps] = useState<{ key: string; data: DashboardOps } | null>(null);
+
+  // Indicadores operacionais (0026): sem a migração ou sem permissão, fica "—".
+  useEffect(() => {
+    let cancelled = false;
+    const [from, to] = metricsKey.split("|");
+    fetchDashboardOps(from || undefined, to || undefined)
+      .then((data) => !cancelled && setOps({ key: metricsKey, data }))
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [metricsKey]);
+  const op = ops?.key === metricsKey ? ops.data : null;
 
   // Plataforma (0024): só aparece para quem vê Indicadores.
   useEffect(() => {
@@ -339,10 +340,52 @@ export function DashboardView() {
               }
               detail="média dos concluídos no período"
             />
-            <PendingTile label="Coletas no prazo" module="Coletas e rotas" />
-            <PendingTile label="Paradas não realizadas" module="Coletas e rotas" />
-            <PendingTile label="Custo por rota" module="Coletas e rotas" />
-            <PendingTile label="Divergências na conferência" module="a Conferência" />
+            <StatTile
+              label="Coletas no prazo"
+              value={
+                op && rate(op.collectOnTime, op.collectTotal) !== null
+                  ? formatPct(rate(op.collectOnTime, op.collectTotal)!)
+                  : "—"
+              }
+              detail={
+                op
+                  ? `${count(op.collectOnTime)} de ${count(op.collectTotal)} paradas de coleta`
+                  : "até 1 h depois do horário previsto"
+              }
+            />
+            <StatTile
+              label="Paradas não realizadas"
+              value={op ? count(op.stopsFailed) : "—"}
+              detail={
+                op
+                  ? op.stopsFailed > 0 && op.failedTopReason
+                    ? `mais comum: ${stopReasonLabel(op.failedTopReason)}`
+                    : `de ${count(op.stopsEnded)} paradas encerradas`
+                  : "coletas e entregas"
+              }
+            />
+            <StatTile
+              label="Custo por rota"
+              value={op?.tripCostAvg != null ? formatBRL(op.tripCostAvg) : "—"}
+              detail={
+                op
+                  ? `${count(op.tripsDone)} viagem(ns)${op.costPerKm != null ? ` · ${formatBRL(op.costPerKm)}/km` : ""}`
+                  : "entregador + combustível por viagem"
+              }
+            />
+            <StatTile
+              label="Divergências na conferência"
+              value={
+                op && rate(op.ordersDivergent, op.ordersChecked) !== null
+                  ? formatPct(rate(op.ordersDivergent, op.ordersChecked)!)
+                  : "—"
+              }
+              detail={
+                op
+                  ? `${count(op.ordersDivergent)} de ${count(op.ordersChecked)} pedidos conferidos`
+                  : "pedidos com item faltando ou a mais"
+              }
+            />
             <StatTile
               label="Ocorrências em aberto"
               value={

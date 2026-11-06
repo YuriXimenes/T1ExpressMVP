@@ -2,6 +2,7 @@
 
 import { createBrowserClient } from "@/lib/supabase/client";
 import { ORDER_PHOTO_BUCKET, friendlyAdminError, rpc } from "@/lib/admin/api";
+import type { TripTrack } from "@/lib/driver/api";
 
 /** Planejamento, rotas, viagens e cadastros da operação (0017_routes.sql). */
 
@@ -578,4 +579,35 @@ export async function fetchTripCentralCandidates(tripId: string): Promise<string
     p_trip: tripId,
   });
   return (rows ?? []).map((r) => r.order_id);
+}
+
+// --- Rastreio ao vivo (0026) -----------------------------------------------------
+
+/** Caminho GPS, última posição e paradas da viagem (mesmo formato do app do entregador). */
+export async function fetchTripTrack(tripId: string): Promise<TripTrack> {
+  return rpc<TripTrack>("admin_trip_track", { p_trip: tripId });
+}
+
+export interface DashboardOps {
+  collectTotal: number;
+  collectOnTime: number;
+  stopsEnded: number;
+  stopsFailed: number;
+  failedTopReason?: string | null;
+  tripsDone: number;
+  tripCostAvg?: number | null;
+  costPerKm?: number | null;
+  ordersChecked: number;
+  ordersDivergent: number;
+}
+
+/** Os 4 indicadores operacionais do Dashboard (período por dia de Brasília). */
+export async function fetchDashboardOps(
+  from?: string,
+  to?: string,
+): Promise<DashboardOps> {
+  return rpc<DashboardOps>("admin_dashboard_ops", {
+    p_from: from ?? null,
+    p_to: to ?? null,
+  });
 }
