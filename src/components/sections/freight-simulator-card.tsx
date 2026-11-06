@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
@@ -22,6 +22,7 @@ import { Price } from "@/components/shared/price";
 import { useAuth } from "@/lib/auth";
 import { useCatalog } from "@/lib/catalog/provider";
 import { savePendingOrder } from "@/lib/pending-order";
+import { logSimulation, markSimulation } from "@/lib/metrics/api";
 import { cn } from "@/lib/utils";
 import type { FreightStore } from "@/lib/types/freight-store";
 import type { FreightQuoteResult } from "@/lib/types/freight";
@@ -47,6 +48,8 @@ export function FreightSimulatorCard({
   const [destinationId, setDestinationId] = useState<string>("");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [result, setResult] = useState<FreightQuoteResult | null>(null);
+  // Registro da simulação em andamento (indicadores).
+  const simulationRef = useRef<Promise<string | null> | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -78,19 +81,39 @@ export function FreightSimulatorCard({
         },
       );
       setResult(quote);
+      // Indicadores: registra em segundo plano, sem travar a tela.
+      simulationRef.current = logSimulation({
+        originStoreIds: originIds,
+        destinationStoreId: destinationId,
+        quote,
+      });
     } catch {
       setError("Não foi possível calcular o frete. Tente novamente.");
+      // Demanda perdida (ex.: rota sem preço de concorrente cadastrado).
+      void logSimulation({
+        originStoreIds: originIds,
+        destinationStoreId: destinationId,
+        failed: true,
+      });
     } finally {
       setIsLoading(false);
     }
   }
 
-  function handleContinue() {
+  async function handleContinue() {
     if (!result) return;
+    // Espera o registro no máximo 1 s: o indicador nunca segura o cliente.
+    const simulationId =
+      (await Promise.race([
+        simulationRef.current ?? Promise.resolve(null),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 1000)),
+      ])) ?? undefined;
+    void markSimulation(simulationId, "continued");
     savePendingOrder({
       originStoreIds: originIds,
       destinationStoreId: destinationId,
       quote: result,
+      simulationId,
     });
     router.push(isLoggedIn ? "/pedido" : "/login?next=%2Fpedido");
   }
@@ -253,7 +276,7 @@ export function FreightSimulatorCard({
             </div>
           )}
 
-          <Button size="lg" className="w-full" onClick={handleContinue}>
+          <Button size="lg" className="w-full" onClick={() => void handleContinue()}>
             Continuar pedido
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Button>

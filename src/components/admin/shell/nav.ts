@@ -24,6 +24,7 @@ import {
   Tag,
   TriangleAlert,
   Truck,
+  TrendingUp,
   UserCog,
   Users,
   type LucideIcon,
@@ -94,6 +95,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   {
     label: "Plataforma",
     items: [
+      { href: "/admin/plataforma/indicadores", label: "Indicadores", icon: TrendingUp },
       { href: "/admin/usuarios", label: "Usuários", icon: Users },
       { href: "/admin/pesquisa", label: "Pesquisa", icon: ClipboardList },
       {

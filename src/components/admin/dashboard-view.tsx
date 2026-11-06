@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { Clock } from "lucide-react";
 import { formatBRL } from "@/components/shared/price";
 import { StatTile, formatNumber, formatPct } from "@/components/admin/survey-charts";
@@ -10,23 +11,30 @@ import { summarizeDashboard, type DashboardOrder } from "@/lib/admin/dashboard";
 import { fetchOccurrenceSummary, type OccurrenceSummary } from "@/lib/occurrences/api";
 import { fetchFinanceOverview, type FinanceOverview } from "@/lib/finance/api";
 import { currentMonthKey } from "@/lib/finance/rules";
+import { fetchMetricsSummary, type MetricsSummary } from "@/lib/metrics/api";
+import { rate } from "@/lib/metrics/rules";
 
 const count = (n: number) => n.toLocaleString("pt-BR");
 
 function Block({
   title,
   subtitle,
+  action,
   children,
 }: {
   title: string;
   subtitle?: string;
+  action?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <section className="flex flex-col gap-3">
-      <div>
-        <h2 className="text-base font-semibold text-slate-900">{title}</h2>
-        {subtitle && <p className="text-xs text-slate-500">{subtitle}</p>}
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h2 className="text-base font-semibold text-slate-900">{title}</h2>
+          {subtitle && <p className="text-xs text-slate-500">{subtitle}</p>}
+        </div>
+        {action}
       </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         {children}
@@ -56,6 +64,22 @@ export function DashboardView() {
   const [finance, setFinance] = useState<FinanceOverview | null>(null);
   const periodFilter = usePeriodFilter("30d");
   const { period } = periodFilter;
+  const [metrics, setMetrics] = useState<{ key: string; data: MetricsSummary } | null>(
+    null,
+  );
+  const metricsKey = `${period.from ?? ""}|${period.to ?? ""}`;
+
+  // Plataforma (0024): só aparece para quem vê Indicadores.
+  useEffect(() => {
+    let cancelled = false;
+    const [from, to] = metricsKey.split("|");
+    fetchMetricsSummary({ from: from || undefined, to: to || undefined })
+      .then((data) => !cancelled && setMetrics({ key: metricsKey, data }))
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [metricsKey]);
 
   useEffect(() => {
     let cancelled = false;
@@ -185,6 +209,42 @@ export function DashboardView() {
               detail="frete + seguro por pedido"
             />
           </Block>
+
+          {metrics && (
+            <Block
+              title="Plataforma"
+              subtitle="Simulações de frete feitas no período"
+              action={
+                <Link
+                  href="/admin/plataforma/indicadores"
+                  className="text-brand-600 text-xs font-medium hover:underline"
+                >
+                  Ver indicadores
+                </Link>
+              }
+            >
+              <StatTile
+                label="Simulações"
+                value={count(metrics.data.simulations)}
+                detail={`${count(metrics.data.visitors)} navegadores`}
+              />
+              <StatTile
+                label="Viraram pedido pago"
+                value={
+                  rate(metrics.data.paid, metrics.data.simulations) === null
+                    ? "—"
+                    : formatPct(rate(metrics.data.paid, metrics.data.simulations)!)
+                }
+                detail={`${count(metrics.data.paid)} pedido(s)`}
+              />
+              <StatTile
+                label="Simulações que falharam"
+                value={count(metrics.data.failed)}
+                detail="rota sem preço de concorrente"
+              />
+              <StatTile label="Novos cadastros" value={count(metrics.data.signups)} />
+            </Block>
+          )}
 
           <Block
             title="Visão operacional"

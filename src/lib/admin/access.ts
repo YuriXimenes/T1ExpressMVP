@@ -25,6 +25,7 @@ export type StaffArea =
   | "pesquisa"
   | "comparador"
   | "comparativo"
+  | "indicadores"
   | "pessoas"
   | "auditoria"
   | "integracoes";
@@ -140,6 +141,12 @@ export const STAFF_AREAS: {
     label: "Comparativo do site",
     group: "Plataforma",
     hrefs: ["/admin/plataforma/comparativo"],
+  },
+  {
+    id: "indicadores",
+    label: "Indicadores",
+    group: "Plataforma",
+    hrefs: ["/admin/plataforma/indicadores"],
   },
   {
     id: "pessoas",

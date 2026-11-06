@@ -21,6 +21,7 @@ import { computeInsuranceInfo } from "@/lib/insurance";
 import { orderFreightBRL } from "@/lib/pricing";
 import { Price } from "@/components/shared/price";
 import { checkCoupon, fetchMyCredit, type CheckedCoupon } from "@/lib/orders/api";
+import { markSimulation } from "@/lib/metrics/api";
 import { useCatalog } from "@/lib/catalog/provider";
 import { cn } from "@/lib/utils";
 import type { PedidoGroup } from "@/lib/types/order";
@@ -75,6 +76,12 @@ export function PedidoView() {
   useEffect(() => {
     if (isReady && !isLoggedIn) router.replace("/login?next=%2Fpedido");
   }, [isReady, isLoggedIn, router]);
+
+  // Indicadores: chegou à montagem do pedido (já logado).
+  const simulationId = order?.simulationId;
+  useEffect(() => {
+    if (isLoggedIn && simulationId) void markSimulation(simulationId, "order_page");
+  }, [isLoggedIn, simulationId]);
 
   // Saldo de crédito do cliente (resoluções de ocorrência e ajustes do admin).
   useEffect(() => {
@@ -174,6 +181,7 @@ export function PedidoView() {
         couponCode: appliedCoupon?.code,
         useCredit: creditUsedBRL > 0,
       });
+      void markSimulation(order!.simulationId, "order", id);
       clearPendingOrder();
       router.push(`/pagamento?order=${id}`);
     } catch (err) {
