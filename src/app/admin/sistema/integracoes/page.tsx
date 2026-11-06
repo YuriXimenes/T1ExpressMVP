@@ -1,11 +1,18 @@
 import type { Metadata } from "next";
-import { soonItem } from "@/components/admin/shell/nav";
-import { SoonPage } from "@/components/admin/soon-page";
+import { IntegracoesView } from "@/components/admin/sistema/integracoes-view";
 
-const HREF = "/admin/sistema/integracoes";
+export const metadata: Metadata = { title: "Integrações" };
 
-export const metadata: Metadata = { title: soonItem(HREF).label };
-
-export default function Page() {
-  return <SoonPage href={HREF} />;
+export default function AdminIntegracoesPage() {
+  // Variáveis que a Vercel preenche no deploy (vazias no localhost).
+  return (
+    <IntegracoesView
+      deploy={{
+        env: process.env.VERCEL_ENV,
+        commit: process.env.VERCEL_GIT_COMMIT_SHA,
+        branch: process.env.VERCEL_GIT_COMMIT_REF,
+        message: process.env.VERCEL_GIT_COMMIT_MESSAGE,
+      }}
+    />
+  );
 }
