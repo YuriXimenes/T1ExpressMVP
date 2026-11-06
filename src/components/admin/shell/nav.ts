@@ -125,24 +125,11 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         href: "/admin/sistema/auditoria",
         label: "Auditoria",
         icon: ShieldCheck,
-        soon: {
-          delivery: 10,
-          summary: "Registro de tudo o que é alterado no backoffice.",
-          features: [
-            "Quem fez, o quê, valor anterior e novo, quando e justificativa",
-            "Filtros por pessoa, área e período",
-          ],
-        },
       },
       {
         href: "/admin/sistema/integracoes",
         label: "Integrações",
         icon: Plug,
-        soon: {
-          delivery: 10,
-          summary: "Serviços conectados e saúde do sistema.",
-          features: ["Status das integrações", "Monitoramento de erros e alertas"],
-        },
       },
     ],
   },
