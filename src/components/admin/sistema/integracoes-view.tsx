@@ -24,7 +24,7 @@ import { reportError } from "@/lib/system/errors";
 import { cn } from "@/lib/utils";
 
 /** Migração que este código espera no banco. */
-const EXPECTED_SCHEMA = "0025";
+const EXPECTED_SCHEMA = "0026";
 const BUCKETS = ["order-photos", "partner-docs", "finance-docs"];
 
 type CheckState = "checando" | "ok" | "atencao" | "falha" | "info";

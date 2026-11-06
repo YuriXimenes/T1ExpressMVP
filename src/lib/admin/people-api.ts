@@ -267,6 +267,8 @@ export interface TeamMember {
   notes?: string;
   linkedUser?: { id: string; name: string; email: string };
   payRules: PayRule[];
+  /** Entregador vê os próprios ganhos no app (0026). */
+  showEarnings: boolean;
 }
 
 interface TeamRow {
@@ -279,6 +281,7 @@ interface TeamRow {
   document: string | null;
   pix_key: string | null;
   notes: string | null;
+  show_earnings?: boolean | null;
   account: { id: string; name: string; email: string } | null;
   rules: {
     kind: PayRule["kind"];
@@ -292,7 +295,7 @@ export async function fetchTeam(): Promise<TeamMember[]> {
   const { data, error } = await createBrowserClient()
     .from("team_members" as never)
     .select(
-      `id, name, kind, status, phone, email, document, pix_key, notes,
+      `id, name, kind, status, phone, email, document, pix_key, notes, show_earnings,
        account:profiles!user_id(id, name, email),
        rules:team_pay_rules(kind, amount_brl, note, sort_order)`,
     )
@@ -310,6 +313,7 @@ export async function fetchTeam(): Promise<TeamMember[]> {
     pixKey: r.pix_key ?? undefined,
     notes: r.notes ?? undefined,
     linkedUser: r.account ?? undefined,
+    showEarnings: r.show_earnings ?? false,
     payRules: [...r.rules]
       .sort((a, b) => a.sort_order - b.sort_order)
       .map((rule) => ({
@@ -345,4 +349,12 @@ export async function saveTeamMember(
   });
   await rpc<void>("admin_set_team_pay_rules", { p_member: id, p: payRules });
   return id;
+}
+
+/** Liga ou desliga "mostrar ganhos no app" de um entregador (0026). */
+export async function setTeamMemberEarnings(
+  memberId: string,
+  show: boolean,
+): Promise<void> {
+  await rpc<void>("admin_set_team_member_earnings", { p_member: memberId, p_show: show });
 }

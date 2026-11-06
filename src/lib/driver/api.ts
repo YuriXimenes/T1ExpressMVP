@@ -78,7 +78,12 @@ export interface DriverTrip {
   finishedAt?: string;
   odometerStart?: number;
   plannedKm?: number;
+  actualKm?: number;
   notes?: string;
+  lastPosition?: { lat: number; lng: number; at: string };
+  /** Só no histórico. */
+  stopsDone?: number;
+  stopsFailed?: number;
   routes: DriverRoute[];
 }
 
@@ -175,4 +180,93 @@ export async function uploadStopPhoto(stopId: string, file: File) {
     await supabase.storage.from("order-photos").remove([path]);
     throw err;
   }
+}
+
+// --- Mapa, GPS, histórico e ganhos (0026) ----------------------------------------
+
+export interface TripTrack {
+  tripId: string;
+  status: string;
+  day: string;
+  driverName: string;
+  startedAt?: string;
+  finishedAt?: string;
+  /** Pontos [lat, lng] em ordem. */
+  path: [number, number][];
+  last?: { lat: number; lng: number; at: string; source: string; accuracy?: number };
+  stops: {
+    id: string;
+    routeKind: "coleta" | "entrega";
+    position: number;
+    status: string;
+    doneAt?: string;
+    name: string;
+    address: string;
+    lat?: number;
+    lng?: number;
+  }[];
+}
+
+export async function fetchDriverTripTrack(tripId: string): Promise<TripTrack> {
+  return call<TripTrack>("driver_trip_track", { p_trip: tripId });
+}
+
+/** Grava a posição; devolve false quando o banco descarta (rápido demais ou imprecisa). */
+export async function trackPosition(
+  tripId: string,
+  lat: number,
+  lng: number,
+  accuracy?: number,
+): Promise<boolean> {
+  return call<boolean>("driver_track_position", {
+    p_trip: tripId,
+    p_lat: lat,
+    p_lng: lng,
+    p_accuracy: accuracy ?? null,
+  });
+}
+
+export async function fetchDriverHistory(): Promise<DriverTrip[]> {
+  return (await call<DriverTrip[]>("driver_trip_history")) ?? [];
+}
+
+export interface EarningsMonth {
+  month: string;
+  current: boolean;
+  dueDate: string;
+  trips: number;
+  tripCost: number;
+  fixed: number;
+  adjustments: { id: string; amount: number; description: string }[];
+  adjustmentsTotal: number;
+  total: number;
+  payout: { amount: number; paidAt: string; receiptPath?: string; note?: string } | null;
+  tripList: {
+    id: string;
+    day: string;
+    km?: number;
+    cost?: number;
+    finishedAt?: string;
+  }[];
+}
+
+export type DriverEarnings =
+  { enabled: false } | { enabled: true; months: EarningsMonth[] };
+
+export async function fetchDriverEarnings(): Promise<DriverEarnings> {
+  try {
+    return await call<DriverEarnings>("driver_earnings");
+  } catch {
+    // Banco sem a 0026 ou sem permissão: a aba não aparece.
+    return { enabled: false };
+  }
+}
+
+/** Link temporário do comprovante (só o do próprio entregador, pela política do banco). */
+export async function payoutReceiptUrl(path: string): Promise<string> {
+  const { data, error } = await createBrowserClient()
+    .storage.from("finance-docs")
+    .createSignedUrl(path, 60 * 10);
+  if (error || !data) throw new DriverError("Não foi possível abrir o comprovante.");
+  return data.signedUrl;
 }
