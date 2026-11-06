@@ -21,6 +21,7 @@ function makeOrder(overrides: Partial<MockOrder> = {}): MockOrder {
     itemsTotal: 0,
     insurance: { extraCoverageOptedIn: false, coverageAmountBRL: 100, extraCostBRL: 0 },
     freightAfterDiscountBRL: 12,
+    creditUsedBRL: 0,
     amountDueBRL: 12,
     storeCharges: [],
     supportTickets: [],

@@ -265,6 +265,14 @@ export function PagamentoView({
             </span>
           </div>
         )}
+        {order.creditUsedBRL > 0 && (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-600">Crédito usado</span>
+            <span className="font-medium text-emerald-600">
+              -{formatBRL(order.creditUsedBRL)}
+            </span>
+          </div>
+        )}
         <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-base">
           <span className="font-semibold text-slate-900">Total a pagar</span>
           <Price value={order.amountDueBRL} className="text-brand-700 font-bold" />

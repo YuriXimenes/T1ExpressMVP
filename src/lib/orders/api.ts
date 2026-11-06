@@ -50,7 +50,7 @@ const ORDER_SELECT = `
   id, created_at, status, paid_at, completed_at, cancel_reason, delivery_stage,
   estimated_pickup_date, delivery_note, items_total_brl, insurance_opted_in, insurance_coverage_brl,
   insurance_extra_cost_brl, coupon_code, coupon_type, coupon_value, coupon_discount_brl,
-  freight_after_discount_brl, amount_due_brl, payment_method, quote_price_brl,
+  freight_after_discount_brl, amount_due_brl, credit_used_brl, payment_method, quote_price_brl,
   quote_estimated_days_min, quote_estimated_days_max, quote_distance_label,
   quote_cheapest_savings_brl,
   destination:stores!destination_store_id(code),
@@ -118,6 +118,7 @@ interface OrderRow {
   coupon_discount_brl: number | string | null;
   freight_after_discount_brl: number | string;
   amount_due_brl: number | string;
+  credit_used_brl?: number | string | null;
   payment_method: PaymentMethod | null;
   quote_price_brl: number | string;
   quote_estimated_days_min: number;
@@ -283,6 +284,7 @@ function mapOrder(row: OrderRow): MockOrder {
           }
         : undefined,
     freightAfterDiscountBRL: Number(row.freight_after_discount_brl),
+    creditUsedBRL: Number(row.credit_used_brl ?? 0),
     amountDueBRL: Number(row.amount_due_brl),
     paymentMethod: row.payment_method ?? undefined,
     storeCharges: charges,
@@ -343,23 +345,27 @@ function toGroupsPayload(
 
 /** As 7 funções de escrita de pedido chamadas pelo app (as outras — advance_delivery_stage
  * e as _internas — são de uso exclusivo do banco/admin). */
-type OrderRpcName = Extract<
-  keyof Database["public"]["Functions"],
-  | "create_order"
-  | "pay_order"
-  | "complete_order"
-  | "add_groups_to_order"
-  | "add_store_charge"
-  | "pay_store_charge"
-  | "create_support_ticket"
->;
+type OrderRpcName =
+  | Extract<
+      keyof Database["public"]["Functions"],
+      | "create_order"
+      | "pay_order"
+      | "complete_order"
+      | "add_groups_to_order"
+      | "add_store_charge"
+      | "pay_store_charge"
+      | "create_support_ticket"
+    >
+  // Funções da 0023, ainda fora dos tipos gerados.
+  | "check_coupon"
+  | "my_credit";
 
 async function rpc<T>(name: OrderRpcName, args: Record<string, unknown>): Promise<T> {
   // O formato de `args` varia por função e já é garantido pelos tipos de
   // entrada de cada chamada (CreateOrderInput, AddStoreChargeInput, etc.) e
   // validado de novo no banco; o cast só contorna o tipo específico que o
   // client gerado espera para cada nome de função.
-  const { data, error } = await createBrowserClient().rpc(name, args as never);
+  const { data, error } = await createBrowserClient().rpc(name as never, args as never);
   if (error) throw friendlyOrderError(error);
   return data as T;
 }
@@ -373,6 +379,8 @@ export interface CreateOrderInput {
   insuranceOptedIn: boolean;
   /** Só o código: o desconto é recalculado no servidor. */
   couponCode?: string;
+  /** Abater o crédito do cliente (o servidor usa até o saldo). */
+  useCredit?: boolean;
 }
 
 /** Cria o pedido "aguardando pagamento" e devolve o id (UUID). */
@@ -384,6 +392,7 @@ export function createOrder(input: CreateOrderInput): Promise<string> {
       deliveryNote: input.deliveryNote,
       insuranceOptedIn: input.insuranceOptedIn,
       couponCode: input.couponCode ?? null,
+      useCredit: input.useCredit ?? false,
       quote: {
         estimatedDaysMin: input.quote.estimatedDaysMin,
         estimatedDaysMax: input.quote.estimatedDaysMax,
@@ -456,4 +465,71 @@ export function createSupportTicket(
     p_subject: subject,
     p_message: message,
   });
+}
+
+// --- Cupom e crédito -------------------------------------------------------
+
+export interface CheckedCoupon {
+  code: string;
+  type: "percent" | "flat";
+  value: number;
+  label: string;
+  discountBRL: number;
+}
+
+/**
+ * Confere o cupom no servidor (validade, limites, pedido mínimo, primeira
+ * compra) e devolve o desconto no preço em vigor. Lança OrderError com a
+ * mensagem para o cliente quando o cupom não vale.
+ */
+export async function checkCoupon(
+  code: string,
+  storeCount: number,
+): Promise<CheckedCoupon> {
+  const r = await rpc<{
+    code: string;
+    type: "percent" | "flat";
+    value: number | string;
+    label: string;
+    discountBRL: number | string;
+  }>("check_coupon", { p_code: code, p_store_count: storeCount });
+  return {
+    code: r.code,
+    type: r.type,
+    value: Number(r.value),
+    label: r.label,
+    discountBRL: Number(r.discountBRL),
+  };
+}
+
+export type CreditKind = "ocorrencia" | "ajuste" | "uso" | "estorno";
+
+export interface CreditEntry {
+  id: string;
+  amount: number;
+  kind: CreditKind;
+  note?: string;
+  orderId?: string;
+  occurrenceId?: string;
+  occurrenceNumber?: number;
+  createdAt: string;
+  createdByName?: string;
+}
+
+export interface CreditStatement {
+  balance: number;
+  entries: CreditEntry[];
+}
+
+export function toCreditStatement(raw: unknown): CreditStatement {
+  const r = (raw ?? {}) as { balance?: number | string; entries?: CreditEntry[] };
+  return {
+    balance: Number(r.balance ?? 0),
+    entries: (r.entries ?? []).map((e) => ({ ...e, amount: Number(e.amount) })),
+  };
+}
+
+/** Saldo e extrato de crédito do cliente logado. */
+export async function fetchMyCredit(): Promise<CreditStatement> {
+  return toCreditStatement(await rpc<unknown>("my_credit", {}));
 }

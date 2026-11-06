@@ -20,7 +20,7 @@ import { useOrders, OrderError } from "@/lib/orders/store";
 import { computeInsuranceInfo } from "@/lib/insurance";
 import { orderFreightBRL } from "@/lib/pricing";
 import { Price } from "@/components/shared/price";
-import { applyCoupon, type CouponResult } from "@/lib/data/coupons";
+import { checkCoupon, fetchMyCredit, type CheckedCoupon } from "@/lib/orders/api";
 import { useCatalog } from "@/lib/catalog/provider";
 import { cn } from "@/lib/utils";
 import type { PedidoGroup } from "@/lib/types/order";
@@ -30,7 +30,7 @@ export function PedidoView() {
   const { isLoggedIn, isReady, user } = useAuth();
   const order = usePendingOrder();
   const { create } = useOrders();
-  const { stores: freightStores, coletaPartners, coupons, pricing } = useCatalog();
+  const { stores: freightStores, coletaPartners, pricing } = useCatalog();
 
   const origins = order
     ? freightStores.filter((store) => order.originStoreIds.includes(store.id))
@@ -49,8 +49,11 @@ export function PedidoView() {
   const [showSummary, setShowSummary] = useState(false);
   const [insuranceOptedIn, setInsuranceOptedIn] = useState(false);
   const [couponCode, setCouponCode] = useState("");
-  const [appliedCoupon, setAppliedCoupon] = useState<CouponResult | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<CheckedCoupon | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
+  const [isCheckingCoupon, setIsCheckingCoupon] = useState(false);
+  const [creditBalance, setCreditBalance] = useState(0);
+  const [useCredit, setUseCredit] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
 
@@ -72,6 +75,16 @@ export function PedidoView() {
   useEffect(() => {
     if (isReady && !isLoggedIn) router.replace("/login?next=%2Fpedido");
   }, [isReady, isLoggedIn, router]);
+
+  // Saldo de crédito do cliente (resoluções de ocorrência e ajustes do admin).
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    queueMicrotask(() => {
+      fetchMyCredit()
+        .then((s) => setCreditBalance(s.balance))
+        .catch(() => setCreditBalance(0));
+    });
+  }, [isLoggedIn]);
 
   if (!isLoggedIn) return null;
 
@@ -110,18 +123,33 @@ export function PedidoView() {
     freightPriceBRL - (appliedCoupon?.discountBRL ?? 0),
     0,
   );
-  const amountDueBRL = freightAfterDiscountBRL + insuranceExtraCostBRL;
+  // O banco usa o crédito até o saldo; aqui é a mesma conta, só para a prévia.
+  const creditUsedBRL = useCredit
+    ? Math.min(creditBalance, freightAfterDiscountBRL + insuranceExtraCostBRL)
+    : 0;
+  const amountDueBRL = Math.max(
+    Math.round((freightAfterDiscountBRL + insuranceExtraCostBRL - creditUsedBRL) * 100) /
+      100,
+    0,
+  );
   const selectedStore = originPartners.find((partner) => partner.id === selectedStoreId);
 
-  function handleApplyCoupon() {
-    const result = applyCoupon(couponCode, freightPriceBRL, coupons);
-    if (!result) {
-      setAppliedCoupon(null);
-      setCouponError("Cupom inválido.");
-      return;
-    }
-    setAppliedCoupon(result);
+  async function handleApplyCoupon() {
+    const code = couponCode.trim();
+    if (!code || isCheckingCoupon) return;
+    setIsCheckingCoupon(true);
     setCouponError(null);
+    try {
+      // Validade, limites, pedido mínimo e primeira compra: o servidor confere.
+      setAppliedCoupon(await checkCoupon(code, order!.originStoreIds.length));
+    } catch (err) {
+      setAppliedCoupon(null);
+      setCouponError(
+        err instanceof OrderError ? err.message : "Não foi possível conferir o cupom.",
+      );
+    } finally {
+      setIsCheckingCoupon(false);
+    }
   }
 
   function handleRemoveCoupon() {
@@ -143,7 +171,8 @@ export function PedidoView() {
         deliveryNote,
         quote: order!.quote,
         insuranceOptedIn,
-        couponCode: appliedCoupon?.coupon.code,
+        couponCode: appliedCoupon?.code,
+        useCredit: creditUsedBRL > 0,
       });
       clearPendingOrder();
       router.push(`/pagamento?order=${id}`);
@@ -175,8 +204,13 @@ export function PedidoView() {
         onCouponCodeChange={setCouponCode}
         appliedCoupon={appliedCoupon}
         couponError={couponError}
-        onApplyCoupon={handleApplyCoupon}
+        onApplyCoupon={() => void handleApplyCoupon()}
         onRemoveCoupon={handleRemoveCoupon}
+        isCheckingCoupon={isCheckingCoupon}
+        creditBalanceBRL={creditBalance}
+        useCredit={useCredit}
+        onUseCreditChange={setUseCredit}
+        creditUsedBRL={creditUsedBRL}
         amountDueBRL={amountDueBRL}
         onBack={() => setShowSummary(false)}
         onConfirm={handleConfirm}

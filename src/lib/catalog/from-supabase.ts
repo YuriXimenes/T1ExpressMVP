@@ -59,13 +59,6 @@ interface ComparisonValueRow {
   detail: string | null;
 }
 
-interface CouponRow {
-  code: string;
-  type: "percent" | "flat";
-  value: number | string;
-  label: string;
-}
-
 interface StateRow {
   uf: string;
   name: string;
@@ -136,7 +129,8 @@ function must<T>(
 export async function loadCatalogFromSupabase(): Promise<Catalog> {
   const supabase = createCatalogClient();
 
-  const [stores, routes, flatRates, carriers, rows, values, coupons, states, pricingRes] =
+  // Cupons não vêm mais no catálogo: o site confere cada um no servidor (check_coupon).
+  const [stores, routes, flatRates, carriers, rows, values, states, pricingRes] =
     await Promise.all([
       supabase
         .from("stores")
@@ -151,7 +145,6 @@ export async function loadCatalogFromSupabase(): Promise<Catalog> {
       supabase.from("comparison_carriers").select("*").order("sort_order"),
       supabase.from("comparison_rows").select("*").order("sort_order"),
       supabase.from("comparison_values").select("*"),
-      supabase.from("coupons").select("code, type, value, label").eq("active", true),
       supabase.from("brazil_states").select("uf, name"),
       supabase
         .from("pricing_settings")
@@ -170,7 +163,6 @@ export async function loadCatalogFromSupabase(): Promise<Catalog> {
   const carrierRows = must<ComparisonCarrierRow>(carriers, "comparison_carriers");
   const comparisonRows = must<ComparisonRowRow>(rows, "comparison_rows");
   const valueRows = must<ComparisonValueRow>(values, "comparison_values");
-  const couponRows = must<CouponRow>(coupons, "coupons");
   const stateRows = must<StateRow>(states, "brazil_states");
 
   const codeById = new Map(storeRows.map((s) => [s.id, s.code]));
@@ -270,12 +262,6 @@ export async function loadCatalogFromSupabase(): Promise<Catalog> {
     freightRoutes,
     correiosFlatRateBRL: Number(correios.flat_rate_brl),
     marketComparison: { carriers: marketCarriers, rows: marketRows },
-    coupons: couponRows.map((c) => ({
-      code: c.code,
-      type: c.type,
-      value: Number(c.value),
-      label: c.label,
-    })),
     brazilStates: [...stateRows].sort((a, b) => byPtBr(a.name, b.name)),
     pricing: toPricing(pricingRes),
   };

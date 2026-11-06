@@ -4,21 +4,9 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, LifeBuoy, Plus, Store } from "lucide-react";
+import { ArrowLeft, Plus, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { OrderStatusTracker } from "@/components/sections/order-status-tracker";
 import { OrderItemsBreakdown } from "@/components/sections/order-items-breakdown";
 import { OrderHandlingSection } from "@/components/sections/order-handling-section";
@@ -64,12 +52,8 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
   const [newStoreIds, setNewStoreIds] = useState<string[] | null>(null);
   const [addingStoreId, setAddingStoreId] = useState<string | null>(null);
   const [draftGroups, setDraftGroups] = useState<PedidoGroup[]>([]);
-  const [ticketDialogOpen, setTicketDialogOpen] = useState(false);
-  const [ticketSubject, setTicketSubject] = useState("");
-  const [ticketMessage, setTicketMessage] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
   const [isSavingPedido, setIsSavingPedido] = useState(false);
-  const [isSavingTicket, setIsSavingTicket] = useState(false);
 
   useEffect(() => {
     if (isReady && !isLoggedIn) router.replace(`/login?next=%2Fpedidos%2F${orderId}`);
@@ -169,22 +153,6 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
   function handleAddStores(ids: string[]) {
     if (ids.length === 0) return;
     setNewStoreIds(ids);
-  }
-
-  async function handleOpenTicket() {
-    if (!ticketSubject.trim() || !ticketMessage.trim() || isSavingTicket) return;
-    setIsSavingTicket(true);
-    setActionError(null);
-    try {
-      await addTicket(order!.id, ticketSubject.trim(), ticketMessage.trim());
-      setTicketSubject("");
-      setTicketMessage("");
-      setTicketDialogOpen(false);
-    } catch (err) {
-      setActionError(actionErrorMessage(err));
-    } finally {
-      setIsSavingTicket(false);
-    }
   }
 
   async function handleMarkCompleted() {
@@ -356,6 +324,14 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
                 </span>
               </div>
             )}
+            {order.creditUsedBRL > 0 && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-600">Crédito usado</span>
+                <span className="font-medium text-emerald-600">
+                  -{formatBRL(order.creditUsedBRL)}
+                </span>
+              </div>
+            )}
             {paidCharges.map((charge) => (
               <div key={charge.id} className="flex items-center justify-between text-sm">
                 <span className="text-slate-600">
@@ -379,91 +355,18 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
             </div>
           </Card>
 
-          <Card className="gap-3 p-6">
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <p className="flex items-center gap-2 font-semibold text-slate-900">
-                  <LifeBuoy className="text-brand-600 h-4 w-4" aria-hidden="true" />
-                  Precisa de ajuda?
-                </p>
-                <p className="text-sm text-slate-600">
-                  Abra um chamado e nosso suporte entra em contato.
-                </p>
-              </div>
-              <Dialog open={ticketDialogOpen} onOpenChange={setTicketDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button type="button" variant="outline" size="sm" className="shrink-0">
-                    Abrir chamado
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Abrir chamado de suporte</DialogTitle>
-                    <DialogDescription>
-                      Conte o que aconteceu com o pedido #
-                      {order.id.slice(0, 8).toUpperCase()}.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-3">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="ticket-subject">Assunto</Label>
-                      <Input
-                        id="ticket-subject"
-                        value={ticketSubject}
-                        maxLength={200}
-                        onChange={(event) => setTicketSubject(event.target.value)}
-                        placeholder="Ex.: Atraso na coleta"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="ticket-message">Mensagem</Label>
-                      <Textarea
-                        id="ticket-message"
-                        rows={4}
-                        value={ticketMessage}
-                        maxLength={5000}
-                        onChange={(event) => setTicketMessage(event.target.value)}
-                        placeholder="Descreva o problema..."
-                      />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button
-                      type="button"
-                      onClick={() => void handleOpenTicket()}
-                      disabled={
-                        !ticketSubject.trim() || !ticketMessage.trim() || isSavingTicket
-                      }
-                    >
-                      {isSavingTicket ? "Enviando..." : "Enviar chamado"}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            {order.supportTickets.length > 0 && (
-              <div className="space-y-2 border-t border-slate-100 pt-3">
-                {[...order.supportTickets].reverse().map((ticket) => (
-                  <div key={ticket.id} className="rounded-lg bg-slate-50 p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-medium text-slate-900">
-                        {ticket.subject}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        {new Date(ticket.createdAt).toLocaleDateString("pt-BR")}
-                      </p>
-                    </div>
-                    <p className="mt-1 text-sm text-slate-600">{ticket.message}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
-
-          {order.status !== "pending-payment" && (
-            <CustomerOccurrencesCard orderId={order.id} />
-          )}
+          <CustomerOccurrencesCard
+            orderId={order.id}
+            acceptsReports={order.status === "active" || order.status === "completed"}
+            tickets={order.supportTickets}
+            onSendTicket={async (subject, message) => {
+              try {
+                await addTicket(order.id, subject, message);
+              } catch (err) {
+                throw new Error(actionErrorMessage(err));
+              }
+            }}
+          />
         </div>
 
         <div className="space-y-4">

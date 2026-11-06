@@ -490,9 +490,19 @@ export function OcorrenciaDetailView({ id }: { id: string }) {
                       value={res.note}
                       onChange={(e) => setRes((p) => ({ ...p, note: e.target.value }))}
                     />
-                    {["reembolso", "credito", "sinistro"].includes(res.kind) && (
+                    {["reembolso", "sinistro"].includes(res.kind) && (
                       <p className="text-xs text-slate-500">
                         Fica registrado com o valor; o pagamento é feito no Financeiro.
+                      </p>
+                    )}
+                    {res.kind === "credito" && (
+                      <p className="text-xs text-slate-500">
+                        Entra na hora no saldo do cliente, que usa no próximo pedido.
+                      </p>
+                    )}
+                    {res.kind === "cupom" && (
+                      <p className="text-xs text-slate-500">
+                        O cupom é só deste cliente e vale uma vez.
                       </p>
                     )}
                     <Button

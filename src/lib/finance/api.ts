@@ -416,6 +416,8 @@ export interface FinanceMonth {
     insurance: number;
     storeCharges: number;
     discounts: number;
+    /** Crédito do cliente usado nos pedidos pagos (sai da receita). */
+    credits?: number;
     total: number;
   };
   costs: {

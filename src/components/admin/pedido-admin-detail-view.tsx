@@ -291,6 +291,14 @@ export function PedidoAdminDetailView({ orderId }: { orderId: string }) {
                   : `Básico (${formatBRL(0)})`}
               </span>
             </div>
+            {order.creditUsedBRL > 0 && (
+              <div className="flex justify-between">
+                <span className="text-slate-600">Crédito do cliente usado</span>
+                <span className="font-medium text-emerald-600">
+                  -{formatBRL(order.creditUsedBRL)}
+                </span>
+              </div>
+            )}
             <div className="flex justify-between border-t border-slate-100 pt-2">
               <span className="font-semibold text-slate-900">Pago no pedido</span>
               <span className="font-bold text-slate-900">
