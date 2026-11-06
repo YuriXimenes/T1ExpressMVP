@@ -1,6 +1,7 @@
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,7 +11,7 @@ import { BASE_INSURANCE_COVERAGE_BRL } from "@/lib/insurance";
 import { Price } from "@/components/shared/price";
 import type { PickupPartner } from "@/lib/types/pickup-partner";
 import type { PedidoGroup } from "@/lib/types/order";
-import type { CouponResult } from "@/lib/data/coupons";
+import type { CheckedCoupon } from "@/lib/orders/api";
 
 function formatBRL(value: number) {
   return `R$ ${value.toFixed(2).replace(".", ",")}`;
@@ -34,6 +35,11 @@ export function PedidoSummary({
   couponError,
   onApplyCoupon,
   onRemoveCoupon,
+  isCheckingCoupon = false,
+  creditBalanceBRL = 0,
+  useCredit = false,
+  onUseCreditChange,
+  creditUsedBRL = 0,
   amountDueBRL,
   onBack,
   onConfirm,
@@ -53,10 +59,15 @@ export function PedidoSummary({
   insuranceExtraCostBRL: number;
   couponCode: string;
   onCouponCodeChange: (value: string) => void;
-  appliedCoupon: CouponResult | null;
+  appliedCoupon: CheckedCoupon | null;
   couponError: string | null;
   onApplyCoupon: () => void;
   onRemoveCoupon: () => void;
+  isCheckingCoupon?: boolean;
+  creditBalanceBRL?: number;
+  useCredit?: boolean;
+  onUseCreditChange?: (value: boolean) => void;
+  creditUsedBRL?: number;
   amountDueBRL: number;
   onBack: () => void;
   onConfirm: () => void;
@@ -122,9 +133,7 @@ export function PedidoSummary({
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-600">
                 Cupom{" "}
-                <span className="font-medium text-slate-900">
-                  {appliedCoupon.coupon.code}
-                </span>{" "}
+                <span className="font-medium text-slate-900">{appliedCoupon.code}</span>{" "}
                 aplicado
               </span>
               <button
@@ -140,16 +149,53 @@ export function PedidoSummary({
               <Input
                 value={couponCode}
                 onChange={(event) => onCouponCodeChange(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    onApplyCoupon();
+                  }
+                }}
                 placeholder="Cupom de desconto"
                 className="flex-1"
               />
-              <Button type="button" variant="outline" onClick={onApplyCoupon}>
-                Aplicar
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onApplyCoupon}
+                disabled={isCheckingCoupon || !couponCode.trim()}
+              >
+                {isCheckingCoupon ? "Conferindo..." : "Aplicar"}
               </Button>
             </div>
           )}
-          {couponError && <p className="mt-1.5 text-sm text-red-600">{couponError}</p>}
+          {couponError && (
+            <p role="alert" className="mt-1.5 text-sm text-red-600">
+              {couponError}
+            </p>
+          )}
         </div>
+
+        {creditBalanceBRL > 0 && onUseCreditChange && (
+          <div className="bg-brand-50 flex items-start gap-2 rounded-lg px-3 py-2.5">
+            <Checkbox
+              id="use-credit"
+              checked={useCredit}
+              onCheckedChange={(checked) => onUseCreditChange(checked === true)}
+              className="mt-0.5"
+            />
+            <Label
+              htmlFor="use-credit"
+              className="flex-col items-start gap-0.5 font-normal"
+            >
+              <span className="font-medium text-slate-900">
+                Usar meu crédito ({formatBRL(creditBalanceBRL)} disponível)
+              </span>
+              <span className="text-xs text-slate-600">
+                Abate do total. Se o pedido for cancelado, o crédito volta para você.
+              </span>
+            </Label>
+          </div>
+        )}
 
         <div className="flex items-center justify-between text-sm">
           <span className="text-slate-600">Valor da entrega ({freightDaysLabel})</span>
@@ -168,6 +214,14 @@ export function PedidoSummary({
             <span className="text-slate-600">Seguro adicional</span>
             <span className="font-medium text-slate-900">
               +{formatBRL(insuranceExtraCostBRL)}
+            </span>
+          </div>
+        )}
+        {creditUsedBRL > 0 && (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-600">Crédito usado</span>
+            <span className="font-medium text-emerald-600">
+              -{formatBRL(creditUsedBRL)}
             </span>
           </div>
         )}

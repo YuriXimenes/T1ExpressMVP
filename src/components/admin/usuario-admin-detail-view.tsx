@@ -17,6 +17,7 @@ import {
 import { useCatalog } from "@/lib/catalog/provider";
 import { gameOptions } from "@/lib/data/games";
 import { AdminError, fetchAdminUser, type AdminUserDetail } from "@/lib/admin/api";
+import { UserCreditCard } from "@/components/admin/user-credit-card";
 
 const NOT_INFORMED = <span className="text-slate-400">Não informado</span>;
 
@@ -216,6 +217,8 @@ export function UsuarioAdminDetailView({ userId }: { userId: string }) {
               </ul>
             )}
           </Section>
+
+          <UserCreditCard userId={userId} />
 
           <Section title={`Pedidos (${orders.length})`}>
             {orders.length === 0 ? (

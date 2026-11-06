@@ -1,6 +1,5 @@
 import { brazilStates } from "@/lib/data/brazil-states";
 import { coletaPartners } from "@/lib/data/coleta-partners";
-import { coupons } from "@/lib/data/coupons";
 import { freightStores } from "@/lib/data/freight-stores";
 import { CORREIOS_FLAT_RATE_BRL, freightRoutes } from "@/lib/data/freight-routes";
 import {
@@ -25,7 +24,6 @@ export const staticCatalog: Catalog = {
     carriers: marketComparisonCarriers,
     rows: marketComparisonRows,
   },
-  coupons,
   brazilStates,
   pricing: DEFAULT_PRICING,
 };

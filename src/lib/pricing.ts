@@ -26,3 +26,41 @@ export const DEFAULT_PRICING: Pricing = {
 export function orderFreightBRL(originCount: number, pricing: Pricing): number {
   return pricing.baseBRL + Math.max(0, originCount - 1) * pricing.extraStoreBRL;
 }
+
+/** Uma versão do preço (tabela `pricing_versions`): vale a partir de `effectiveFrom`. */
+export interface PricingVersion extends Pricing {
+  id: string;
+  effectiveFrom: string;
+  note?: string;
+  createdAt: string;
+}
+
+export type PricingVersionStatus = "agendado" | "vigente" | "anterior";
+
+/**
+ * Situação de cada versão no instante `nowMs`: a vigente é a última que já
+ * começou (empate: a criada por último, igual ao banco); as futuras estão agendadas.
+ */
+export function classifyPricingVersions(
+  versions: PricingVersion[],
+  nowMs: number,
+): Map<string, PricingVersionStatus> {
+  const started = versions
+    .filter((v) => Date.parse(v.effectiveFrom) <= nowMs)
+    .sort(
+      (a, b) =>
+        Date.parse(b.effectiveFrom) - Date.parse(a.effectiveFrom) ||
+        Date.parse(b.createdAt) - Date.parse(a.createdAt),
+    );
+  const currentId = started[0]?.id;
+  return new Map(
+    versions.map((v) => [
+      v.id,
+      Date.parse(v.effectiveFrom) > nowMs
+        ? "agendado"
+        : v.id === currentId
+          ? "vigente"
+          : "anterior",
+    ]),
+  );
+}

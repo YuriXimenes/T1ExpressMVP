@@ -82,7 +82,11 @@ export function VisaoGeralView() {
             <Kpi
               label="Receita"
               value={money(m.revenue.total)}
-              detail={`${money(m.revenue.discounts)} em cupons já descontados`}
+              detail={
+                m.revenue.credits
+                  ? `${money(m.revenue.discounts)} em cupons e ${money(m.revenue.credits)} em crédito já descontados`
+                  : `${money(m.revenue.discounts)} em cupons já descontados`
+              }
             />
             <Kpi label="Custos" value={money(m.costs.total)} />
             <Kpi

@@ -82,6 +82,8 @@ export interface MockOrder {
   coupon?: AppliedCoupon;
 
   freightAfterDiscountBRL: number;
+  /** Crédito do cliente abatido do total (volta ao saldo se o pedido for cancelado). */
+  creditUsedBRL: number;
   /** Único valor efetivamente cobrado no pagamento. */
   amountDueBRL: number;
   paymentMethod?: PaymentMethod;

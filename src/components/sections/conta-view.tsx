@@ -7,6 +7,7 @@ import { PackageSearch, History, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AccountSettingsForm } from "@/components/sections/account-settings-form";
+import { AccountSummary } from "@/components/sections/account-summary";
 import { MockOrderCard } from "@/components/sections/mock-order-card";
 import { SurveyBanner } from "@/components/sections/survey-banner";
 import { useAuth } from "@/lib/auth";
@@ -79,7 +80,7 @@ export function ContaView() {
   ) : null;
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto max-w-2xl lg:max-w-6xl">
       <h1 className="text-2xl font-bold text-slate-900">
         {user ? `Olá, ${user.name}` : "Minha conta"}
       </h1>
@@ -88,99 +89,112 @@ export function ContaView() {
       {/* Convite da pesquisa: depois do 1º pedido, em todas as abas; o próprio banner some quando a pessoa já respondeu. */}
       {!isLoading && orders.length > 0 && <SurveyBanner />}
 
-      <Tabs
-        value={tab}
-        onValueChange={(value) => setTab(value as ContaTab)}
-        className="mt-8"
-      >
-        <TabsList className="h-auto w-full gap-2 rounded-2xl border border-slate-200 bg-slate-100 p-2 shadow-inner">
-          <TabsTrigger
-            value="ativos"
-            className={cn(
-              "h-11 flex-1 gap-2 rounded-xl border-2 text-sm font-bold",
-              tab === "ativos"
-                ? "!border-brand-700 !bg-brand-600 !text-white !shadow-lg"
-                : "border-transparent !text-slate-500 hover:!text-slate-800",
-            )}
-          >
-            <PackageSearch className="h-4 w-4" aria-hidden="true" />
-            Pedidos ativos
-          </TabsTrigger>
-          <TabsTrigger
-            value="historico"
-            className={cn(
-              "h-11 flex-1 gap-2 rounded-xl border-2 text-sm font-bold",
-              tab === "historico"
-                ? "!border-brand-700 !bg-brand-600 !text-white !shadow-lg"
-                : "border-transparent !text-slate-500 hover:!text-slate-800",
-            )}
-          >
-            <History className="h-4 w-4" aria-hidden="true" />
-            Histórico
-          </TabsTrigger>
-          <TabsTrigger
-            value="configuracoes"
-            className={cn(
-              "h-11 flex-1 gap-2 rounded-xl border-2 text-sm font-bold",
-              tab === "configuracoes"
-                ? "!border-brand-700 !bg-brand-600 !text-white !shadow-lg"
-                : "border-transparent !text-slate-500 hover:!text-slate-800",
-            )}
-          >
-            <Settings className="h-4 w-4" aria-hidden="true" />
-            Configurações
-          </TabsTrigger>
-        </TabsList>
+      {/* PC: pedidos à esquerda e resumo fixo à direita. Celular: resumo compacto acima das abas. */}
+      <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start lg:gap-8">
+        <aside className="lg:sticky lg:top-24 lg:order-2">
+          <AccountSummary
+            activeCount={activeOrders.length}
+            historyCount={historyOrders.length}
+            onSelectTab={setTab}
+          />
+        </aside>
 
-        <TabsContent value="ativos">
-          {actionError && (
-            <p role="alert" className="mt-4 text-sm text-red-600">
-              {actionError}
-            </p>
-          )}
-          {ordersNotice ? (
-            ordersNotice
-          ) : activeOrders.length === 0 ? (
-            <EmptyOrdersState
-              title="Você ainda não tem pedidos ativos"
-              description="Assim que você simular um frete e confirmar um pedido, ele aparece aqui."
-            />
-          ) : (
-            <div className="space-y-3 pt-4">
-              {activeOrders.map((order) => (
-                <MockOrderCard
-                  key={order.id}
-                  order={order}
-                  onMarkCompleted={() => void handleMarkCompleted(order.id)}
+        <div className="min-w-0 lg:order-1">
+          <Tabs
+            value={tab}
+            onValueChange={(value) => setTab(value as ContaTab)}
+            className="lg:mt-0"
+          >
+            <TabsList className="h-auto w-full gap-2 rounded-2xl border border-slate-200 bg-slate-100 p-2 shadow-inner">
+              <TabsTrigger
+                value="ativos"
+                className={cn(
+                  "h-11 flex-1 gap-2 rounded-xl border-2 text-sm font-bold",
+                  tab === "ativos"
+                    ? "!border-brand-700 !bg-brand-600 !text-white !shadow-lg"
+                    : "border-transparent !text-slate-500 hover:!text-slate-800",
+                )}
+              >
+                <PackageSearch className="h-4 w-4" aria-hidden="true" />
+                Pedidos ativos
+              </TabsTrigger>
+              <TabsTrigger
+                value="historico"
+                className={cn(
+                  "h-11 flex-1 gap-2 rounded-xl border-2 text-sm font-bold",
+                  tab === "historico"
+                    ? "!border-brand-700 !bg-brand-600 !text-white !shadow-lg"
+                    : "border-transparent !text-slate-500 hover:!text-slate-800",
+                )}
+              >
+                <History className="h-4 w-4" aria-hidden="true" />
+                Histórico
+              </TabsTrigger>
+              <TabsTrigger
+                value="configuracoes"
+                className={cn(
+                  "h-11 flex-1 gap-2 rounded-xl border-2 text-sm font-bold",
+                  tab === "configuracoes"
+                    ? "!border-brand-700 !bg-brand-600 !text-white !shadow-lg"
+                    : "border-transparent !text-slate-500 hover:!text-slate-800",
+                )}
+              >
+                <Settings className="h-4 w-4" aria-hidden="true" />
+                Configurações
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="ativos">
+              {actionError && (
+                <p role="alert" className="mt-4 text-sm text-red-600">
+                  {actionError}
+                </p>
+              )}
+              {ordersNotice ? (
+                ordersNotice
+              ) : activeOrders.length === 0 ? (
+                <EmptyOrdersState
+                  title="Você ainda não tem pedidos ativos"
+                  description="Assim que você simular um frete e confirmar um pedido, ele aparece aqui."
                 />
-              ))}
-            </div>
-          )}
-        </TabsContent>
+              ) : (
+                <div className="space-y-3 pt-4">
+                  {activeOrders.map((order) => (
+                    <MockOrderCard
+                      key={order.id}
+                      order={order}
+                      onMarkCompleted={() => void handleMarkCompleted(order.id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </TabsContent>
 
-        <TabsContent value="historico">
-          {ordersNotice ? (
-            ordersNotice
-          ) : historyOrders.length === 0 ? (
-            <EmptyOrdersState
-              title="Nenhum pedido no histórico ainda"
-              description="Pedidos concluídos ou cancelados vão aparecer aqui."
-            />
-          ) : (
-            <div className="space-y-3 pt-4">
-              {historyOrders.map((order) => (
-                <MockOrderCard key={order.id} order={order} />
-              ))}
-            </div>
-          )}
-        </TabsContent>
+            <TabsContent value="historico">
+              {ordersNotice ? (
+                ordersNotice
+              ) : historyOrders.length === 0 ? (
+                <EmptyOrdersState
+                  title="Nenhum pedido no histórico ainda"
+                  description="Pedidos concluídos ou cancelados vão aparecer aqui."
+                />
+              ) : (
+                <div className="space-y-3 pt-4">
+                  {historyOrders.map((order) => (
+                    <MockOrderCard key={order.id} order={order} />
+                  ))}
+                </div>
+              )}
+            </TabsContent>
 
-        <TabsContent value="configuracoes">
-          <div className="pt-4">
-            <AccountSettingsForm />
-          </div>
-        </TabsContent>
-      </Tabs>
+            <TabsContent value="configuracoes">
+              <div className="pt-4">
+                <AccountSettingsForm />
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
     </div>
   );
 }

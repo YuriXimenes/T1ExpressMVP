@@ -2,7 +2,8 @@
 
 import { createBrowserClient } from "@/lib/supabase/client";
 import { STORE_LOGO_BUCKET } from "@/lib/store-logo";
-import type { Pricing } from "@/lib/pricing";
+import type { Pricing, PricingVersion } from "@/lib/pricing";
+import { toCreditStatement, type CreditStatement } from "@/lib/orders/api";
 import { fetchProfile } from "@/lib/account";
 import type { MockUser } from "@/lib/auth";
 import {
@@ -95,6 +96,59 @@ export async function fetchPricing(): Promise<Pricing> {
 export async function updatePricing(pricing: Pricing): Promise<void> {
   await rpc<void>("admin_update_pricing", { p: pricing });
   await revalidateCatalog();
+}
+
+/** Histórico de preços (o mais novo primeiro), inclusive os agendados. */
+export async function fetchPricingVersions(): Promise<PricingVersion[]> {
+  const { data, error } = await createBrowserClient()
+    .from("pricing_versions" as never)
+    .select(
+      "id, base_brl, extra_store_brl, added_store_brl, insurance_per_100_brl, effective_from, note, created_at",
+    )
+    .order("effective_from", { ascending: false })
+    .order("created_at", { ascending: false })
+    .returns<
+      {
+        id: string;
+        base_brl: number | string;
+        extra_store_brl: number | string;
+        added_store_brl: number | string;
+        insurance_per_100_brl: number | string;
+        effective_from: string;
+        note: string | null;
+        created_at: string;
+      }[]
+    >();
+  if (error) throw friendlyAdminError(error);
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    baseBRL: Number(r.base_brl),
+    extraStoreBRL: Number(r.extra_store_brl),
+    addedStoreBRL: Number(r.added_store_brl),
+    insurancePer100BRL: Number(r.insurance_per_100_brl),
+    effectiveFrom: r.effective_from,
+    note: r.note ?? undefined,
+    createdAt: r.created_at,
+  }));
+}
+
+/**
+ * Nova versão de preço. `effectiveFrom` vazio = vale agora (e o catálogo do
+ * site é atualizado na hora); com data, fica agendada.
+ */
+export async function savePricingVersion(
+  pricing: Pricing,
+  effectiveFrom: string | null,
+  note: string,
+): Promise<void> {
+  await rpc<string>("admin_save_pricing", {
+    p: { ...pricing, effectiveFrom: effectiveFrom ?? "", note },
+  });
+  if (!effectiveFrom) await revalidateCatalog();
+}
+
+export async function deletePricingVersion(id: string): Promise<void> {
+  await rpc<void>("admin_delete_pricing_version", { p_id: id });
 }
 
 /** Faz o site público reler o catálogo agora, sem esperar o cache de 5 min. */
@@ -352,7 +406,7 @@ const ADMIN_ORDER_SELECT = `
   id, created_at, status, paid_at, completed_at, cancel_reason, delivery_stage,
   estimated_pickup_date, delivery_note, items_total_brl, insurance_opted_in,
   insurance_coverage_brl, insurance_extra_cost_brl, coupon_code, coupon_type, coupon_value,
-  coupon_discount_brl, freight_after_discount_brl, amount_due_brl, payment_method,
+  coupon_discount_brl, freight_after_discount_brl, amount_due_brl, credit_used_brl, payment_method,
   quote_price_brl, quote_estimated_days_min, quote_estimated_days_max, quote_distance_label,
   quote_cheapest_savings_brl,
   customer:profiles!user_id(name, email),
@@ -418,6 +472,7 @@ interface AdminOrderRow {
   coupon_discount_brl: number | string | null;
   freight_after_discount_brl: number | string;
   amount_due_brl: number | string;
+  credit_used_brl: number | string | null;
   payment_method: PaymentMethod | null;
   quote_price_brl: number | string;
   quote_estimated_days_min: number;
@@ -584,6 +639,7 @@ function mapAdminOrder(row: AdminOrderRow): AdminOrder {
           }
         : undefined,
     freightAfterDiscountBRL: Number(row.freight_after_discount_brl),
+    creditUsedBRL: Number(row.credit_used_brl ?? 0),
     amountDueBRL: Number(row.amount_due_brl),
     paymentMethod: row.payment_method ?? undefined,
     storeCharges: charges,
@@ -1315,32 +1371,115 @@ export async function upsertComparisonValue(
 
 // --- Catálogo: cupons -----------------------------------------------------
 
-export interface AdminCoupon {
+export interface CouponRules {
+  /** AAAA-MM-DD (dia de Brasília); vazio = sem limite. */
+  validFrom?: string;
+  validUntil?: string;
+  maxUses?: number;
+  maxUsesPerUser?: number;
+  /** Frete mínimo (antes do desconto) para o cupom valer. */
+  minOrderBRL?: number;
+  firstPurchaseOnly: boolean;
+  note?: string;
+}
+
+export interface AdminCoupon extends CouponRules {
   code: string;
   type: "percent" | "flat";
   value: number;
   label: string;
   active: boolean;
+  /** Cupom de ocorrência: só deste cliente. */
+  ownerUserId?: string;
+  ownerName?: string;
+  createdAt: string;
+  /** Pedidos não cancelados que usaram o cupom (inclui os aguardando pagamento). */
+  uses: number;
+  paidUses: number;
+  discountTotal: number;
+  lastUsedAt?: string;
 }
 
+export type CouponInput = CouponRules & {
+  type: "percent" | "flat";
+  value: number;
+  label: string;
+  active: boolean;
+};
+
+/** Cupons com regras e uso (admin_coupons). */
 export async function fetchCoupons(): Promise<AdminCoupon[]> {
-  const { data, error } = await createBrowserClient()
-    .from("coupons")
-    .select("code, type, value, label, active")
-    .order("code");
-  if (error) throw friendlyAdminError(error);
-  return (data ?? []).map((c) => ({
-    code: c.code,
-    type: c.type,
+  const rows = await rpc<
+    (Omit<AdminCoupon, "firstPurchaseOnly"> & { firstPurchaseOnly?: boolean })[]
+  >("admin_coupons", {});
+  return (rows ?? []).map((c) => ({
+    ...c,
     value: Number(c.value),
-    label: c.label,
-    active: c.active,
+    maxUses: c.maxUses ?? undefined,
+    maxUsesPerUser: c.maxUsesPerUser ?? undefined,
+    minOrderBRL: c.minOrderBRL === undefined ? undefined : Number(c.minOrderBRL),
+    firstPurchaseOnly: c.firstPurchaseOnly ?? false,
+    uses: Number(c.uses ?? 0),
+    paidUses: Number(c.paidUses ?? 0),
+    discountTotal: Number(c.discountTotal ?? 0),
   }));
 }
 
-export async function upsertCoupon(
-  code: string,
-  input: { type: "percent" | "flat"; value: number; label: string; active: boolean },
-): Promise<void> {
-  await rpc<void>("admin_upsert_coupon", { p_code: code, p: input });
+/** Campos vazios vão como "" (o banco grava sem limite). */
+export async function upsertCoupon(code: string, input: CouponInput): Promise<void> {
+  await rpc<void>("admin_upsert_coupon", {
+    p_code: code,
+    p: {
+      type: input.type,
+      value: input.value,
+      label: input.label,
+      active: input.active,
+      validFrom: input.validFrom ?? "",
+      validUntil: input.validUntil ?? "",
+      maxUses: input.maxUses ?? "",
+      maxUsesPerUser: input.maxUsesPerUser ?? "",
+      minOrderBRL: input.minOrderBRL ?? "",
+      firstPurchaseOnly: input.firstPurchaseOnly,
+      note: input.note ?? "",
+    },
+  });
+}
+
+export interface CouponOrder {
+  id: string;
+  createdAt: string;
+  status: "pending-payment" | "active" | "completed" | "cancelled";
+  customerName?: string;
+  discountBRL: number;
+  amountDueBRL: number;
+}
+
+export async function fetchCouponOrders(code: string): Promise<CouponOrder[]> {
+  const rows = await rpc<CouponOrder[]>("admin_coupon_orders", { p_code: code });
+  return (rows ?? []).map((o) => ({
+    ...o,
+    discountBRL: Number(o.discountBRL ?? 0),
+    amountDueBRL: Number(o.amountDueBRL ?? 0),
+  }));
+}
+
+// --- Crédito do cliente ---------------------------------------------------
+
+export async function fetchUserCredit(userId: string): Promise<CreditStatement> {
+  return toCreditStatement(await rpc<unknown>("admin_user_credit", { p_user: userId }));
+}
+
+/** Positivo dá crédito, negativo tira. Devolve o novo saldo. */
+export async function adjustUserCredit(
+  userId: string,
+  amount: number,
+  note: string,
+): Promise<number> {
+  return Number(
+    await rpc<number | string>("admin_adjust_credit", {
+      p_user: userId,
+      p_amount: amount,
+      p_note: note,
+    }),
+  );
 }

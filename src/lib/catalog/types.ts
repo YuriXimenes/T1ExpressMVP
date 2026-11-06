@@ -1,5 +1,4 @@
 import type { BrazilState } from "@/lib/data/brazil-states";
-import type { Coupon } from "@/lib/data/coupons";
 import type { FreightRouteQuote } from "@/lib/types/freight-route";
 import type { FreightStore } from "@/lib/types/freight-store";
 import type { ComparisonCarrier, ComparisonRow } from "@/lib/types/market-comparison";
@@ -24,7 +23,6 @@ export interface Catalog {
     carriers: ComparisonCarrier[];
     rows: ComparisonRow[];
   };
-  coupons: Coupon[];
   brazilStates: BrazilState[];
   /** Preços da T1 configurados no admin (aba Preços). */
   pricing: Pricing;
