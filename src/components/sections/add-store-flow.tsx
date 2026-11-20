@@ -225,6 +225,7 @@ export function AddStoreFlow({
             </div>
 
             <StoreOrderBuilder
+              storeName={partner.name}
               groups={draftOrdersByStore[partner.id] ?? []}
               onChange={(groups) =>
                 setDraftOrdersByStore((prev) => ({ ...prev, [partner.id]: groups }))
