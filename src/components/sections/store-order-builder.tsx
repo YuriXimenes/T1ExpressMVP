@@ -1,6 +1,7 @@
 "use client";
 
-import { Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { Plus, Trash2, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +16,7 @@ import { PriceQuantityFields } from "@/components/shared/price-quantity-fields";
 import { accessoryOptions, pedidoKindOptions } from "@/lib/data/order-options";
 import { gameOptions } from "@/lib/data/games";
 import { makeCardItem, makePedidoGroup } from "@/lib/order-helpers";
+import { OrderImportDialog } from "@/components/sections/order-import-dialog";
 import { cn } from "@/lib/utils";
 import type { AccessoryItem, CardLikeItem, PedidoGroup } from "@/lib/types/order";
 
@@ -48,10 +50,14 @@ export function orderGroupTotal(group: PedidoGroup): number {
 export function StoreOrderBuilder({
   groups,
   onChange,
+  storeName,
 }: {
   groups: PedidoGroup[];
   onChange: (groups: PedidoGroup[]) => void;
+  /** Nome da loja: habilita "Importar do pedido" (print ou texto colado). */
+  storeName?: string;
 }) {
+  const [importOpen, setImportOpen] = useState(false);
   function updateGroup(id: string, patch: Partial<PedidoGroup>) {
     onChange(groups.map((group) => (group.id === id ? { ...group, ...patch } : group)));
   }
@@ -100,6 +106,28 @@ export function StoreOrderBuilder({
 
   return (
     <div className="space-y-4">
+      {storeName && (
+        <>
+          <div className="border-brand-200 bg-brand-50/60 flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3">
+            <p className="text-sm text-slate-700">
+              <span className="font-medium text-slate-900">Já fez o pedido na loja?</span>{" "}
+              Importe as cartas pelo print ou pelo texto do pedido.
+            </p>
+            <Button type="button" size="sm" onClick={() => setImportOpen(true)}>
+              <Wand2 className="h-4 w-4" aria-hidden="true" />
+              Importar do pedido
+            </Button>
+          </div>
+          <OrderImportDialog
+            open={importOpen}
+            onOpenChange={setImportOpen}
+            stores={[{ id: "this", name: storeName, groups }]}
+            onApply={(next) => {
+              if (next.this) onChange(next.this);
+            }}
+          />
+        </>
+      )}
       {groups.map((group, groupIndex) => (
         <div key={group.id} className="space-y-4 rounded-lg border border-slate-200 p-4">
           <div className="flex items-start justify-between gap-2">

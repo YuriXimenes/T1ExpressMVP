@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { PackageCheck } from "lucide-react";
+import { PackageCheck, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PedidoStoreRow } from "@/components/sections/pedido-store-row";
 import { PedidoSummary } from "@/components/sections/pedido-summary";
+import { OrderImportDialog } from "@/components/sections/order-import-dialog";
 import {
   StoreOrderBuilder,
   makePedidoGroup,
@@ -57,6 +58,7 @@ export function PedidoView() {
   const [useCredit, setUseCredit] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [importAllOpen, setImportAllOpen] = useState(false);
 
   const originsKey = origins.map((store) => store.id).join(",");
   if (originsKey && seededOrigins !== originsKey) {
@@ -325,6 +327,29 @@ export function PedidoView() {
           </Card>
 
           <div>
+            {originPartners.length > 1 && (
+              <div className="mb-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setImportAllOpen(true)}
+                >
+                  <Wand2 className="h-4 w-4" aria-hidden="true" />
+                  Importar pedido com várias lojas
+                </Button>
+                <OrderImportDialog
+                  open={importAllOpen}
+                  onOpenChange={setImportAllOpen}
+                  stores={originPartners.map((p) => ({
+                    id: p.id,
+                    name: p.name,
+                    groups: ordersByStore[p.id] ?? [],
+                  }))}
+                  onApply={(next) => setOrdersByStore((prev) => ({ ...prev, ...next }))}
+                />
+              </div>
+            )}
             <p className="mb-2 text-xs font-medium tracking-wide text-slate-500 uppercase">
               Selecione a loja para montar o pedido
             </p>
@@ -363,6 +388,7 @@ export function PedidoView() {
             </div>
 
             <StoreOrderBuilder
+              storeName={selectedStore.name}
               groups={ordersByStore[selectedStore.id] ?? []}
               onChange={(groups) =>
                 setOrdersByStore((prev) => ({ ...prev, [selectedStore.id]: groups }))
