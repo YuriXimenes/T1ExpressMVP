@@ -14,6 +14,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Protótipos e material de marca (fora do git, não fazem parte do site):
+    "ux-projeto/**",
+    "marca/**",
   ]),
 ]);
 

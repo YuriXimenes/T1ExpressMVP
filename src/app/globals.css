@@ -284,3 +284,131 @@
     opacity: 1;
   }
 }
+
+/* =====================================================================
+   SITE-V2 · layout novo do site público (início)
+   Tokens próprios (--t1-*), definidos SÓ dentro de .site-v2. Nenhum token
+   acima foi alterado: admin, loja e entregador continuam iguais.
+   O @theme abaixo só cria nomes novos de utilitário (bg-t1-*, text-t1-*…),
+   que não têm valor fora de .site-v2. Teste: src/lib/site-v2/isolation.test.ts
+   ===================================================================== */
+@theme inline {
+  --color-t1-bg: var(--t1-bg);
+  --color-t1-bg-2: var(--t1-bg-2);
+  --color-t1-navy: var(--t1-navy);
+  --color-t1-card: var(--t1-card);
+  --color-t1-card-3: var(--t1-card-3);
+  --color-t1-sunken: var(--t1-sunken);
+  --color-t1-hover: var(--t1-hover);
+  --color-t1-overlay: var(--t1-overlay);
+  --color-t1-line: var(--t1-line);
+  --color-t1-line-2: var(--t1-line-2);
+  --color-t1-line-3: var(--t1-line-3);
+  --color-t1-brand: var(--t1-brand);
+  --color-t1-brand-700: var(--t1-brand-700);
+  --color-t1-brand-800: var(--t1-brand-800);
+  --color-t1-brand-50: var(--t1-brand-50);
+  --color-t1-brand-tint: var(--t1-brand-tint);
+  --color-t1-accent: var(--t1-accent);
+  --color-t1-accent-line: var(--t1-accent-line);
+  --color-t1-ink: var(--t1-ink);
+  --color-t1-muted: var(--t1-muted);
+  --color-t1-dim: var(--t1-dim);
+  --color-t1-label: var(--t1-label);
+  --color-t1-placeholder: var(--t1-placeholder);
+  --color-t1-ok: var(--t1-ok);
+  --color-t1-ok-ink: var(--t1-ok-ink);
+  --color-t1-ok-bg: var(--t1-ok-bg);
+  --color-t1-ok-line: var(--t1-ok-line);
+  --color-t1-warn-ink: var(--t1-warn-ink);
+  --color-t1-warn-bg: var(--t1-warn-bg);
+  --color-t1-warn-line: var(--t1-warn-line);
+  --color-t1-danger: var(--t1-danger);
+  --color-t1-danger-ink: var(--t1-danger-ink);
+  --color-t1-danger-bg: var(--t1-danger-bg);
+  --color-t1-danger-line: var(--t1-danger-line);
+  --color-t1-info-ink: var(--t1-info-ink);
+  --color-t1-info-bg: var(--t1-info-bg);
+  --color-t1-info-line: var(--t1-info-line);
+  --color-t1-violet-ink: var(--t1-violet-ink);
+  --color-t1-violet-bg: var(--t1-violet-bg);
+  --color-t1-violet-line: var(--t1-violet-line);
+  --font-t1-display: var(--t1-font-display);
+  --radius-t1: var(--t1-radius);
+  --radius-t1-sm: var(--t1-radius-sm);
+  --shadow-t1-sm: var(--t1-shadow-sm);
+  --shadow-t1: var(--t1-shadow);
+  --shadow-t1-lg: var(--t1-shadow-lg);
+  --shadow-t1-glow: var(--t1-glow);
+}
+
+.site-v2 {
+  --t1-bg: #f6f8fc;
+  --t1-bg-2: #eef3fa;
+  --t1-navy: #0b1e45;
+  --t1-card: #ffffff;
+  --t1-card-3: #f8fafd;
+  --t1-sunken: #f1f5fb;
+  --t1-hover: rgba(15, 23, 42, 0.045);
+  --t1-overlay: rgba(15, 23, 42, 0.42);
+  --t1-line: #e2e8f0;
+  --t1-line-2: #cbd5e1;
+  --t1-line-3: #94a3b8;
+  --t1-brand: #2563eb;
+  --t1-brand-700: #1d4ed8;
+  --t1-brand-800: #1e40af;
+  --t1-brand-50: #eff6ff;
+  --t1-brand-tint: #dbeafe;
+  --t1-accent: #1d4ed8;
+  --t1-accent-line: #93c5fd;
+  --t1-ink: #0b1220;
+  --t1-muted: #475569;
+  --t1-dim: #5b6b82;
+  --t1-label: #1e293b;
+  --t1-placeholder: #7a8699;
+  --t1-ok: #15803d;
+  --t1-ok-ink: #166534;
+  --t1-ok-bg: #ecfdf3;
+  --t1-ok-line: #86efac;
+  --t1-warn-ink: #92400e;
+  --t1-warn-bg: #fff8e6;
+  --t1-warn-line: #fcd34d;
+  --t1-danger: #dc2626;
+  --t1-danger-ink: #b91c1c;
+  --t1-danger-bg: #fef2f2;
+  --t1-danger-line: #fca5a5;
+  --t1-info-ink: #1e40af;
+  --t1-info-bg: #eff6ff;
+  --t1-info-line: #bfdbfe;
+  --t1-violet-ink: #4338ca;
+  --t1-violet-bg: #eef2ff;
+  --t1-violet-line: #c7d2fe;
+  --t1-font-display: var(--font-anton), "Bebas Neue", Impact, sans-serif;
+  --t1-radius: 20px;
+  --t1-radius-sm: 14px;
+  --t1-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 1px rgba(15, 23, 42, 0.03);
+  --t1-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 18px 40px -22px rgba(15, 23, 42, 0.22);
+  --t1-shadow-lg: 0 2px 6px rgba(15, 23, 42, 0.05), 0 40px 80px -36px rgba(15, 23, 42, 0.32);
+  --t1-glow: 0 12px 28px -10px rgba(37, 99, 235, 0.55);
+  background: var(--t1-bg);
+  color: var(--t1-ink);
+}
+.site-v2 ::selection {
+  background: #bfdbfe;
+  color: #0b1220;
+}
+.site-v2 :focus-visible {
+  outline: 2px solid var(--t1-brand);
+  outline-offset: 3px;
+}
+/* Fundo do herói de página (céu claro + silhueta da cidade), igual ao protótipo. */
+.site-v2 .t1-page-hero {
+  background:
+    radial-gradient(50% 60% at 50% 100%, rgba(253, 224, 171, 0.55), transparent 70%),
+    radial-gradient(40% 60% at 12% 70%, rgba(96, 165, 250, 0.3), transparent 70%),
+    radial-gradient(40% 60% at 90% 55%, rgba(147, 197, 253, 0.38), transparent 70%),
+    linear-gradient(180deg, #cfe0fb 0%, #e4edfc 45%, #f4f1ea 82%, #f6f8fc 100%);
+}
+/* =====================================================================
+   SITE-V2 · fim
+   ===================================================================== */

@@ -3,6 +3,10 @@ export const siteConfig = {
   tagline: "Transporte especializado em TCG entre lojas parceiras.",
   description:
     "A T1 Express conecta lojas de TCG por todo o Brasil com envios rápidos, seguros e rastreáveis, feitos sob medida para cartas colecionáveis.",
+  contact: {
+    email: "contato@t1express.com.br",
+    phone: "0800 123 4567",
+  },
   social: {
     facebook: "https://facebook.com",
     instagram: "https://instagram.com",
