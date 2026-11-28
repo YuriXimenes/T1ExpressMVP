@@ -69,6 +69,10 @@ function loadImage(src: string, timeoutMs = 6000): Promise<void> {
 
 export interface DeployInfo {
   env?: string;
+  /** NEXT_PUBLIC_APP_ENV ("staging" no ambiente de testes). */
+  appEnv?: string;
+  /** Projeto Supabase em uso (id tirado da URL). */
+  supabaseRef?: string | null;
   commit?: string;
   branch?: string;
   message?: string;
@@ -210,6 +214,12 @@ export function IntegracoesView({ deploy }: { deploy: DeployInfo }) {
       detail: deploy.commit
         ? `${deploy.env === "production" ? "Produção" : (deploy.env ?? "")} · ${deploy.commit.slice(0, 7)}${deploy.branch ? ` (${deploy.branch})` : ""}${deploy.message ? ` · ${deploy.message.split("\n")[0].slice(0, 80)}` : ""}`
         : "Rodando fora da Vercel (localhost).",
+    },
+    {
+      id: "ambiente",
+      name: "Ambiente e banco em uso",
+      state: "info",
+      detail: `${deploy.appEnv === "staging" ? "Ambiente de testes (staging)" : "Produção"} · banco Supabase ${deploy.supabaseRef ?? "não configurado"}`,
     },
     {
       id: "email",

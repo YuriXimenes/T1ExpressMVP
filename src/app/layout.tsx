@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
+import { EnvBadge } from "@/components/shared/env-badge";
 import { CatalogProvider } from "@/lib/catalog/provider";
 import { getCatalog } from "@/lib/catalog/server";
+import { IS_STAGING } from "@/lib/app-env";
 import { siteConfig } from "@/lib/constants";
 import "./globals.css";
 
@@ -23,6 +25,7 @@ export const metadata: Metadata = {
     template: `%s | ${siteConfig.name}`,
   },
   description: siteConfig.description,
+  ...(IS_STAGING ? { robots: { index: false, follow: false } } : {}),
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
@@ -36,6 +39,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-full flex-col">
         {/* Cabeçalho e rodapé ficam em (site)/layout.tsx: o /admin tem moldura própria. */}
         <CatalogProvider catalog={catalog}>{children}</CatalogProvider>
+        <EnvBadge />
       </body>
     </html>
   );
